@@ -1,241 +1,204 @@
-// api/_utils.js
-// Shared utilities for all proxy endpoints
+// api/_utils.js v3
+// NSE blocks Vercel IPs directly. Strategy:
+// 1. Use allorigins.win CORS proxy for NSE API calls
+// 2. Use Yahoo Finance (working) for price data
+// 3. Use Screener.in JSON API (not HTML scrape) for fundamentals
+// 4. Use RapidAPI-free alternatives where needed
 
-const NSE_BASE = 'https://www.nseindia.com';
+const PROXY = 'https://api.allorigins.win/raw?url=';
+const PROXY2 = 'https://corsproxy.io/?';
 
-// NSE requires a session cookie obtained from the homepage first.
-// We fetch homepage once per cold start to get cookies.
-let nseCookies = '';
-let cookieFetchedAt = 0;
-const COOKIE_TTL = 10 * 60 * 1000; // 10 minutes
-
-const NSE_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  'Accept': 'application/json, text/plain, */*',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Accept-Encoding': 'gzip, deflate, br',
-  'Referer': 'https://www.nseindia.com/',
-  'Origin': 'https://www.nseindia.com',
-  'sec-ch-ua': '"Chromium";v="124"',
-  'sec-ch-ua-mobile': '?0',
-  'sec-ch-ua-platform': '"Windows"',
-  'Sec-Fetch-Dest': 'empty',
-  'Sec-Fetch-Mode': 'cors',
-  'Sec-Fetch-Site': 'same-origin',
-  'Connection': 'keep-alive'
-};
-
-async function refreshNseCookies() {
-  const now = Date.now();
-  if (nseCookies && now - cookieFetchedAt < COOKIE_TTL) return nseCookies;
-
-  try {
-    const res = await fetch(NSE_BASE, {
-      headers: {
-        'User-Agent': NSE_HEADERS['User-Agent'],
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.9'
-      }
-    });
-    const setCookie = res.headers.get('set-cookie');
-    if (setCookie) {
-      // Extract cookie names and values only (strip attributes)
-      nseCookies = setCookie
-        .split(',')
-        .map(c => c.split(';')[0].trim())
-        .filter(c => c.includes('='))
-        .join('; ');
-    }
-    cookieFetchedAt = now;
-    return nseCookies;
-  } catch (e) {
-    console.error('NSE cookie refresh failed:', e.message);
-    return '';
-  }
-}
-
-async function fetchNSE(path, retries = 2) {
-  const cookies = await refreshNseCookies();
-  const url = NSE_BASE + path;
-  
-  for (let attempt = 0; attempt <= retries; attempt++) {
+async function fetchViaProxy(url, json = true) {
+  const proxies = [
+    PROXY + encodeURIComponent(url),
+    PROXY2 + encodeURIComponent(url),
+  ];
+  let lastErr;
+  for (const purl of proxies) {
     try {
-      const res = await fetch(url, {
-        headers: {
-          ...NSE_HEADERS,
-          ...(cookies ? { 'Cookie': cookies } : {})
-        }
+      const r = await fetch(purl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
       });
-      
-      if (!res.ok) {
-        if (attempt === retries) throw new Error(`NSE HTTP ${res.status} for ${path}`);
-        await sleep(500 * (attempt + 1));
-        continue;
-      }
-      
-      const data = await res.json();
-      return data;
-    } catch (e) {
-      if (attempt === retries) throw e;
-      await sleep(500 * (attempt + 1));
-    }
+      if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
+      return json ? r.json() : r.text();
+    } catch (e) { lastErr = e; }
   }
+  throw lastErr || new Error('All proxies failed for ' + url);
 }
 
-async function fetchScreener(symbol) {
-  // Screener.in public company page - returns HTML, we parse JSON from script tag
-  const url = `https://www.screener.in/company/${symbol}/consolidated/`;
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': NSE_HEADERS['User-Agent'],
-        'Accept': 'text/html',
-        'Referer': 'https://www.screener.in/'
-      }
-    });
-    if (!res.ok) throw new Error(`Screener HTTP ${res.status}`);
-    const html = await res.text();
-    return html;
-  } catch (e) {
-    // Try standalone (non-consolidated)
-    try {
-      const res = await fetch(`https://www.screener.in/company/${symbol}/`, {
-        headers: {
-          'User-Agent': NSE_HEADERS['User-Agent'],
-          'Accept': 'text/html',
-          'Referer': 'https://www.screener.in/'
-        }
-      });
-      if (!res.ok) throw new Error(`Screener standalone HTTP ${res.status}`);
-      return await res.text();
-    } catch (e2) {
-      throw new Error(`Screener fetch failed for ${symbol}: ${e2.message}`);
-    }
-  }
+// Direct fetch with browser-like headers (works for non-NSE sites)
+async function fetchDirect(url, json = true, extraHeaders = {}) {
+  const r = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': json ? 'application/json, text/plain, */*' : 'text/html,application/xhtml+xml,*/*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      ...extraHeaders
+    },
+    signal: AbortSignal.timeout(9000)
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return json ? r.json() : r.text();
 }
 
-// Parse key fundamentals from Screener HTML
-function parseScreenerFundamentals(html) {
-  const result = {
-    mcap: null,
-    pe: null,
-    sector: null,
-    industry: null,
-    avg_daily_val: null
-  };
-
-  try {
-    // MCap - appears as "Market Cap" in ratios section
-    const mcapMatch = html.match(/Market Cap[^<]*<\/td>[^<]*<td[^>]*>.*?₹?\s*([\d,]+(?:\.\d+)?)\s*Cr/is);
-    if (mcapMatch) result.mcap = parseFloat(mcapMatch[1].replace(/,/g, ''));
-
-    // PE ratio
-    const peMatch = html.match(/Stock P\/E[^<]*<\/td>[^<]*<td[^>]*>\s*([\d.]+)\s*<\/td>/is);
-    if (peMatch) result.pe = parseFloat(peMatch[1]);
-
-    // Sector/Industry from breadcrumb or metadata
-    const sectorMatch = html.match(/sector['":\s]+([A-Za-z &]+)/i);
-    if (sectorMatch) result.sector = sectorMatch[1].trim();
-
-  } catch (e) {
-    console.error('Screener parse error:', e.message);
-  }
-
-  return result;
-}
-
+// Yahoo Finance — WORKING. Use for all price data.
 async function fetchYahoo(symbol, range = '1y', interval = '1d') {
-  // symbol should be like RELIANCE.NS
-  const yahooSym = symbol.includes('.') ? symbol : symbol + '.NS';
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?range=${range}&interval=${interval}&includePrePost=false`;
-  
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': NSE_HEADERS['User-Agent'],
-        'Accept': 'application/json',
-        'Referer': 'https://finance.yahoo.com/'
-      }
-    });
-    if (!res.ok) throw new Error(`Yahoo HTTP ${res.status}`);
-    const data = await res.json();
-    return data?.chart?.result?.[0] || null;
-  } catch (e) {
-    // Fallback: try query2
+  const sym = symbol.includes('.') ? symbol : symbol + '.NS';
+  const urls = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=${range}&interval=${interval}&includePrePost=false`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?range=${range}&interval=${interval}&includePrePost=false`,
+  ];
+  for (const url of urls) {
     try {
-      const url2 = `https://query2.finance.yahoo.com/v8/finance/chart/${yahooSym}?range=${range}&interval=${interval}&includePrePost=false`;
-      const res2 = await fetch(url2, {
-        headers: {
-          'User-Agent': NSE_HEADERS['User-Agent'],
-          'Accept': 'application/json'
-        }
-      });
-      if (!res2.ok) throw new Error(`Yahoo2 HTTP ${res2.status}`);
-      const data2 = await res2.json();
-      return data2?.chart?.result?.[0] || null;
-    } catch (e2) {
-      throw new Error(`Yahoo fetch failed for ${symbol}: ${e2.message}`);
-    }
+      const data = await fetchDirect(url, true, { 'Referer': 'https://finance.yahoo.com/' });
+      const result = data?.chart?.result?.[0];
+      if (result) return result;
+    } catch {}
   }
+  throw new Error('Yahoo failed for ' + symbol);
 }
 
-// Calculate EMA from close prices array
+// Screener.in JSON API — works better than HTML scrape
+// Screener has an undocumented JSON endpoint
+async function fetchScreenerJSON(symbol) {
+  const urls = [
+    `https://www.screener.in/api/company/search/?q=${symbol}`,
+    `https://www.screener.in/company/${symbol}/`,
+  ];
+  // Try JSON search first
+  try {
+    const data = await fetchDirect(
+      `https://www.screener.in/api/company/search/?q=${encodeURIComponent(symbol)}&v=3`,
+      true,
+      { 'Referer': 'https://www.screener.in/', 'X-Requested-With': 'XMLHttpRequest' }
+    );
+    if (Array.isArray(data) && data.length) return { searchResults: data };
+  } catch {}
+  return null;
+}
+
+// Screener HTML with better selectors
+async function fetchScreenerHTML(symbol) {
+  const pages = [
+    `https://www.screener.in/company/${symbol}/consolidated/`,
+    `https://www.screener.in/company/${symbol}/`,
+  ];
+  for (const url of pages) {
+    try {
+      const html = await fetchDirect(url, false, { 'Referer': 'https://www.screener.in/' });
+      if (html && html.length > 5000) return { html, url };
+    } catch {}
+  }
+  return null;
+}
+
+function parseScreenerData(html) {
+  const out = { price: null, mcap: null, pe: null, sector: 'N/A', avg_val: null, quarters: [] };
+  if (!html) return out;
+  try {
+    // Price — multiple patterns
+    const prPatterns = [
+      /class="[^"]*number[^"]*"[^>]*>\s*([\d,]+\.?\d*)/,
+      /"price"\s*:\s*([\d.]+)/,
+      /₹\s*([\d,]+\.?\d*)\s*<\/span>/,
+      /Current Price[^<]*<\/[^>]+>[^<]*<[^>]+>\s*₹?\s*([\d,]+\.?\d*)/i,
+    ];
+    for (const p of prPatterns) {
+      const m = html.match(p);
+      if (m) { out.price = parseFloat(m[1].replace(/,/g, '')); break; }
+    }
+
+    // MCap
+    const mcPatterns = [
+      /Market Cap[^<]*<\/[^>]+>\s*<[^>]+>\s*₹?\s*([\d,]+\.?\d*)\s*(?:Cr)?/i,
+      /"market_cap_full"\s*:\s*([\d.]+)/i,
+    ];
+    for (const p of mcPatterns) {
+      const m = html.match(p);
+      if (m) { out.mcap = parseFloat(m[1].replace(/,/g, '')); break; }
+    }
+
+    // PE
+    const pePatterns = [
+      /Stock P\/E[^<]*<\/[^>]+>\s*<[^>]+>\s*([\d.]+)/i,
+      /"pe"\s*:\s*([\d.]+)/i,
+      /P\/E Ratio[^<]*<\/[^>]+>\s*<[^>]+>\s*([\d.]+)/i,
+    ];
+    for (const p of pePatterns) {
+      const m = html.match(p);
+      if (m) { out.pe = parseFloat(m[1]); break; }
+    }
+
+    // Sector
+    const secPatterns = [
+      /"industry"\s*:\s*"([^"]+)"/i,
+      /"sector"\s*:\s*"([^"]+)"/i,
+      /class="[^"]*breadcrumb[^"]*"[^>]*>[\s\S]*?<a[^>]*>([^<]{3,40})<\/a>\s*<\/li>\s*<li/i,
+    ];
+    for (const p of secPatterns) {
+      const m = html.match(p);
+      if (m && m[1].trim().length > 2) { out.sector = m[1].trim(); break; }
+    }
+
+    // Quarters — Screener renders in <section id="quarters">
+    // Try to find quarterly financials table
+    const qMatch = html.match(/id="quarters"([\s\S]{0,8000})/i);
+    if (qMatch) {
+      const tbl = qMatch[1];
+      // Quarter headers
+      const hRe = /<th[^>]*>\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[^<]{0,20})<\/th>/gi;
+      const hdrs = []; let hm;
+      while ((hm = hRe.exec(tbl)) !== null && hdrs.length < 6) hdrs.push(hm[1].trim());
+
+      const getRowNums = (label) => {
+        const re = new RegExp('>' + label + '<[\\s\\S]{0,500}?<\\/tr>', 'i');
+        const rm = tbl.match(re);
+        if (!rm) return [];
+        const nums = []; const tdRe = /<td[^>]*>\s*([\d,\-]+\.?\d*)\s*<\/td>/g; let tm;
+        while ((tm = tdRe.exec(rm[0])) !== null) {
+          const v = parseFloat(tm[1].replace(/,/g, ''));
+          if (!isNaN(v)) nums.push(v);
+        }
+        return nums;
+      };
+
+      const sales = getRowNums('Sales');
+      const pat   = getRowNums('Net Profit');
+      for (let i = 0; i < Math.min(hdrs.length, 4); i++) {
+        out.quarters.push({ label: hdrs[i], revenue: sales[i] ?? null, pat: pat[i] ?? null });
+      }
+    }
+
+    // Avg daily value estimate
+    const volRe = /(?:10|30)\s*Day\s*Avg[^<]*<\/[^>]+>\s*<[^>]+>\s*([\d,]+)/i;
+    const volM = html.match(volRe);
+    if (volM && out.price) {
+      out.avg_val = Math.round(parseFloat(volM[1].replace(/,/g,'')) * out.price / 1e7 * 10) / 10;
+    }
+  } catch {}
+  return out;
+}
+
+// EMA calculation
 function calcEMA(closes, period) {
-  if (closes.length < period) return null;
+  if (!closes || closes.length < period) return null;
   const k = 2 / (period + 1);
   let ema = closes.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  for (let i = period; i < closes.length; i++) {
-    ema = closes[i] * k + ema * (1 - k);
-  }
+  for (let i = period; i < closes.length; i++) ema = closes[i] * k + ema * (1 - k);
   return Math.round(ema * 100) / 100;
 }
 
-// Calculate RS score using MarketSmith 12-month weighted method
-// Splits 252 trading days into 4 quarters, weights most recent 2x
+// RS Score (MarketSmith method)
 function calcRS(closes) {
   if (!closes || closes.length < 60) return null;
   const len = closes.length;
-  const q1Start = Math.max(0, len - 252);
-  const q2Start = Math.max(0, len - 189); // ~9 months ago
-  const q3Start = Math.max(0, len - 126); // ~6 months ago
-  const q4Start = Math.max(0, len - 63);  // ~3 months ago (most recent)
-
-  const perf = (startIdx, endIdx) => {
-    const start = closes[startIdx];
-    const end = closes[endIdx - 1] || closes[len - 1];
-    if (!start || start === 0) return 0;
-    return (end - start) / start;
-  };
-
-  const p1 = perf(q1Start, q2Start);
-  const p2 = perf(q2Start, q3Start);
-  const p3 = perf(q3Start, q4Start);
-  const p4 = perf(q4Start, len); // most recent quarter - gets 2x weight
-
-  const rsScore = (p4 * 2 + p3 + p2 + p1) / 5;
-  return rsScore;
+  const perf = (si, ei) => { const s = closes[si], e = closes[Math.min(ei, len) - 1]; return s > 0 ? (e - s) / s : 0; };
+  const q4s = Math.max(0, len - 63), q3s = Math.max(0, len - 126), q2s = Math.max(0, len - 189), q1s = Math.max(0, len - 252);
+  return (perf(q4s, len) * 2 + perf(q3s, q4s) + perf(q2s, q3s) + perf(q1s, q2s)) / 5;
 }
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function sendError(res, status, msg) { return res.status(status).json({ error: true, message: msg }); }
+function sendOk(res, data) { return res.status(200).json({ error: false, ...data }); }
 
-function sendError(res, status, message) {
-  return res.status(status).json({ error: true, message });
-}
-
-function sendOk(res, data) {
-  return res.status(200).json({ error: false, ...data });
-}
-
-module.exports = {
-  fetchNSE,
-  fetchScreener,
-  parseScreenerFundamentals,
-  fetchYahoo,
-  calcEMA,
-  calcRS,
-  sleep,
-  sendError,
-  sendOk
-};
+module.exports = { fetchViaProxy, fetchDirect, fetchYahoo, fetchScreenerHTML, parseScreenerData, calcEMA, calcRS, sleep, sendError, sendOk };

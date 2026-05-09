@@ -1,199 +1,158 @@
-// api/ipo.js v2 — multiple NSE endpoints + Screener fallback
-const { sendError, sendOk, sleep } = require('./_utils');
+// api/ipo.js v3
+// NSE blocked directly. Strategy:
+// 1. NSE new listings via allorigins proxy
+// 2. BSE IPO data (public API, less blocked)
+// 3. Screener.in recently listed
+// 4. Build from Yahoo Finance listing date metadata
+
+const { fetchViaProxy, fetchDirect, fetchScreenerHTML, parseScreenerData, sleep, sendError, sendOk } = require('./_utils');
 
 let cache = null, cacheAt = 0;
 const TTL = 60 * 60 * 1000;
 
-let _ck='', _ckat=0;
-async function nCk(){
-  if(_ck && Date.now()-_ckat < 8*60000) return _ck;
-  try {
-    const r = await fetch('https://www.nseindia.com', {
-      headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36','Accept':'text/html'}
-    });
-    const sc = r.headers.get('set-cookie')||'';
-    _ck = sc.split(',').map(c=>c.split(';')[0].trim()).filter(c=>c.includes('=')).join('; ');
-    _ckat = Date.now();
-  } catch {}
-  return _ck;
-}
-
-const NSE_HDR = (ck) => ({
-  'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  'Accept':'application/json, text/plain, */*',
-  'Accept-Language':'en-US,en;q=0.9',
-  'Referer':'https://www.nseindia.com/',
-  'Cookie': ck
-});
-
 function within12m(ds) {
   if (!ds) return false;
-  try {
-    const d = new Date(ds);
-    if (isNaN(d)) return false;
-    const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 1);
-    return d >= cutoff && d <= new Date();
-  } catch { return false; }
+  try { const d = new Date(ds); const c = new Date(); c.setFullYear(c.getFullYear()-1); return !isNaN(d) && d >= c && d <= new Date(); }
+  catch { return false; }
 }
-
 function daysBetween(ds) {
   try { return Math.floor((Date.now() - new Date(ds).getTime()) / 86400000); }
   catch { return null; }
 }
-
-// Parse listing date from various NSE date formats
-function parseDate(val) {
+function parseAnyDate(val) {
   if (!val) return null;
-  // formats: "13-Nov-2024", "2024-11-13", "13/11/2024"
   const s = String(val).trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
   if (/^\d{2}-\w{3}-\d{4}$/.test(s)) {
     const [d,m,y] = s.split('-');
-    const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
-    return `${y}-${months[m]||'01'}-${d.padStart(2,'0')}`;
+    const mn = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+    return `${y}-${mn[m]||'01'}-${d.padStart(2,'0')}`;
   }
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
-    const [d,m,y] = s.split('/'); return `${y}-${m}-${d}`;
-  }
-  // Try native parse as last resort
-  const d = new Date(s);
-  if (!isNaN(d)) return d.toISOString().split('T')[0];
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) { const [d,m,y] = s.split('/'); return `${y}-${m}-${d}`; }
+  if (/^\d{8}$/.test(s)) return `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;
+  try { const d = new Date(s); if (!isNaN(d)) return d.toISOString().slice(0,10); } catch {}
   return null;
 }
 
-async function tryNSEEndpoints(log) {
-  const ck = await nCk();
+// NSE via proxy
+async function fromNSEProxy(log) {
   const endpoints = [
-    '/api/market-data-pre-open?key=NEWLISTING&type=EQ',
-    '/api/ipo-detail',
-    '/api/equity-stockIndices?index=NEWLY%20LISTED',
-    '/api/allIndices',  // sometimes has newly listed section
+    'https://www.nseindia.com/api/market-data-pre-open?key=NEWLISTING&type=EQ',
+    'https://www.nseindia.com/api/ipo-detail',
+    'https://www.nseindia.com/api/equity-stockIndices?index=NEWLY%20LISTED',
   ];
-
-  for (const ep of endpoints) {
+  for (const url of endpoints) {
     try {
-      const r = await fetch('https://www.nseindia.com' + ep, { headers: NSE_HDR(ck) });
-      if (!r.ok) { log.push(ep + ' → HTTP ' + r.status); continue; }
-      const data = await r.json();
-      log.push(ep + ' → keys: ' + Object.keys(data).slice(0,6).join(','));
-
-      let candidates = [];
-      if (Array.isArray(data)) candidates = data;
-      else if (Array.isArray(data.data)) candidates = data.data;
-      else if (Array.isArray(data.ipoDetails)) candidates = data.ipoDetails;
-      else {
-        for (const k of Object.keys(data)) {
-          if (Array.isArray(data[k]) && data[k].length > 0) { candidates = data[k]; break; }
+      const data = await fetchViaProxy(url, true);
+      log.push(url.split('?')[0].split('/').pop() + ' keys: ' + Object.keys(data||{}).slice(0,5).join(','));
+      let candidates = Array.isArray(data) ? data : (data?.data || data?.ipoDetails || []);
+      if (!candidates.length) {
+        for (const k of Object.keys(data||{})) {
+          const v = data[k];
+          if (Array.isArray(v) && v.length > 0) { candidates = v; break; }
         }
       }
-
-      log.push(ep + ' → candidates: ' + candidates.length);
-
-      // Check if these look like listing records
       const withDates = candidates.filter(c => {
-        const dateVal = c.listingDate || c.listingDt || c.listing_date
-          || c.listDate || c.ipoOpenDate || c.LIST_DATE || c.LISTING_DATE;
-        return dateVal && within12m(parseDate(dateVal));
+        const df = c.listingDate||c.listingDt||c.listing_date||c.listDate||c.LIST_DATE||c.LISTING_DATE;
+        return df && within12m(parseAnyDate(df));
       });
-
-      if (withDates.length > 0) {
-        log.push(ep + ' → within 12m: ' + withDates.length);
-        return withDates.map(c => {
-          const rawDate = c.listingDate || c.listingDt || c.listing_date
-            || c.listDate || c.ipoOpenDate || c.LIST_DATE || c.LISTING_DATE;
-          return {
-            symbol: (c.symbol || c.Symbol || c.SYMBOL || '').trim().toUpperCase(),
-            name: c.companyName || c.company || c.COMPANY_NAME || '',
-            list_date: parseDate(rawDate),
-            issue_price: parseFloat(c.issuePrice || c.cutOffPrice || c.ISSUE_PRICE || 0) || null,
-            price: parseFloat(c.ltp || c.lastPrice || c.LTP || c.LAST || 0) || null,
-          };
-        }).filter(c => c.symbol);
-      }
-    } catch (e) { log.push(ep + ' → error: ' + e.message); }
+      log.push('NSE ' + url.split('?')[1] + ': ' + withDates.length + ' within 12m');
+      if (withDates.length > 0) return withDates.map(c => {
+        const df = c.listingDate||c.listingDt||c.listing_date||c.listDate||c.LIST_DATE||c.LISTING_DATE;
+        return {
+          symbol: (c.symbol||c.Symbol||c.SYMBOL||'').trim().toUpperCase(),
+          name: c.companyName||c.company||c.COMPANY_NAME||'',
+          list_date: parseAnyDate(df),
+          issue_price: parseFloat(c.issuePrice||c.cutOffPrice||c.ISSUE_PRICE||0)||null,
+          price: parseFloat(c.ltp||c.lastPrice||c.LTP||0)||null,
+        };
+      }).filter(c => c.symbol);
+    } catch (e) { log.push('NSE proxy ' + e.message); }
   }
   return [];
 }
 
-// Fallback: scrape NSE new listings page HTML
-async function scrapeNSENewListings(log) {
+// BSE IPO data — less blocked than NSE
+async function fromBSE(log) {
+  const syms = [];
   try {
-    const ck = await nCk();
-    const r = await fetch('https://www.nseindia.com/market-data/new-listings-equity-market', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'text/html',
-        'Referer': 'https://www.nseindia.com/',
-        'Cookie': ck
+    const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const past  = new Date(Date.now()-365*86400000).toISOString().slice(0,10).replace(/-/g,'');
+    const url = `https://api.bseindia.com/BseIndiaAPI/api/IPODetails/w?strDate=${past}&endDate=${today}&status=listed`;
+    const data = await fetchDirect(url, true, { 'Referer': 'https://www.bseindia.com/' });
+    const rows = data?.Table || data?.data || data || [];
+    if (Array.isArray(rows)) {
+      for (const r of rows) {
+        const sym = (r.NSESymbol||r.nse_symbol||r.NSE_SYMBOL||'').trim().toUpperCase();
+        if (!sym) continue;
+        const df = r.ListingDate||r.listing_date||r.LISTING_DATE||r.IssueOpenDate||'';
+        const ld = parseAnyDate(df);
+        if (!within12m(ld)) continue;
+        syms.push({
+          symbol: sym,
+          name: r.CompanyName||r.company_name||sym,
+          list_date: ld,
+          issue_price: parseFloat(r.IssuePrice||r.issue_price||0)||null,
+          price: parseFloat(r.LastPrice||r.last_price||0)||null,
+        });
       }
-    });
-    if (!r.ok) throw new Error('HTML page HTTP ' + r.status);
-    const html = await r.text();
-    // Extract from embedded JSON or table
-    const jsonM = html.match(/var\s+listingData\s*=\s*(\[[\s\S]*?\]);/);
-    if (jsonM) {
-      const arr = JSON.parse(jsonM[1]);
-      log.push('NSE new listings HTML: ' + arr.length + ' rows');
-      return arr.filter(c => within12m(parseDate(c.listingDate || c.date))).map(c => ({
-        symbol: (c.symbol||'').toUpperCase(),
-        name: c.companyName || c.company || '',
-        list_date: parseDate(c.listingDate || c.date),
-        issue_price: parseFloat(c.issuePrice || 0) || null,
-        price: parseFloat(c.ltp || c.lastPrice || 0) || null
-      })).filter(c => c.symbol);
     }
-    log.push('NSE HTML: no listingData var found');
-    return [];
-  } catch (e) { log.push('NSE HTML scrape failed: ' + e.message); return []; }
+    log.push('BSE IPO: ' + syms.length);
+  } catch (e) { log.push('BSE IPO failed: ' + e.message); }
+  return syms;
 }
 
-// Screener new listings search
-async function screenerNewListings(log) {
+// Screener recently listed
+async function fromScreener(log) {
+  const syms = [];
   try {
-    // Screener has a "recently listed" screen
-    const r = await fetch('https://www.screener.in/screens/recently-listed/', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'text/html', 'Referer': 'https://www.screener.in/' }
-    });
-    if (!r.ok) throw new Error('Screener recently-listed HTTP ' + r.status);
-    const html = await r.text();
-    // Parse symbol links
-    const re = /href="\/company\/([A-Z0-9]+)\/"/gi;
-    const syms = new Set(); let m;
-    while ((m = re.exec(html)) !== null) syms.add(m[1]);
-    log.push('Screener recently-listed: ' + syms.size + ' symbols');
-    return [...syms].map(s => ({ symbol: s, name: s, list_date: null, issue_price: null, price: null }));
-  } catch (e) { log.push('Screener recently-listed failed: ' + e.message); return []; }
+    const html = await fetchDirect('https://www.screener.in/screens/recently-listed/', false,
+      { 'Referer': 'https://www.screener.in/' });
+    const re = /href="\/company\/([A-Z][A-Z0-9&-]{1,20})\/(?:consolidated\/)?"/gi;
+    const seen = new Set(); let m;
+    while ((m = re.exec(html)) !== null) {
+      const sym = m[1].replace('&amp;','&');
+      if (!seen.has(sym) && sym !== 'LOGIN') { seen.add(sym); syms.push({ symbol: sym, name: sym, list_date: null, issue_price: null, price: null }); }
+    }
+    log.push('Screener recently listed: ' + syms.length);
+  } catch (e) { log.push('Screener recently-listed failed: ' + e.message); }
+  return syms;
 }
 
-async function enrichScreener(symbol, log) {
-  const urls = [
-    `https://www.screener.in/company/${symbol}/consolidated/`,
-    `https://www.screener.in/company/${symbol}/`
-  ];
-  for (const url of urls) {
-    try {
-      const r = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'text/html', 'Referer': 'https://www.screener.in/' }
-      });
-      if (!r.ok) continue;
-      const html = await r.text();
-      const out = { mcap: null, pe: null, price: null, sector: 'N/A', list_date: null };
-      const prM = html.match(/id="current-price"[^>]*>\s*([\d,]+(?:\.\d+)?)/i);
-      if (prM) out.price = parseFloat(prM[1].replace(/,/g,''));
-      const mcM = html.match(/Market Cap[^<]*<\/[^>]+>\s*<[^>]+>\s*₹?\s*([\d,]+(?:\.\d+)?)/i);
-      if (mcM) out.mcap = parseFloat(mcM[1].replace(/,/g,''));
-      const peM = html.match(/Stock P\/E[^<]*<\/[^>]+>\s*<[^>]+>\s*([\d.]+)/i);
-      if (peM) out.pe = parseFloat(peM[1]);
-      const jldM = html.match(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/i);
-      if (jldM) { try { const jd=JSON.parse(jldM[1]); out.sector=jd.industry||jd.sector||'N/A'; } catch {} }
-      // Listed date from Screener "Company Overview" or date fields
-      const ldM = html.match(/Listed\s*<\/[^>]+>\s*<[^>]+>\s*([A-Z][a-z]+\s+\d{4})/i)
-        || html.match(/Listing\s+Date[^<]*<\/[^>]+>\s*<[^>]+>\s*([\d\-\/]+)/i);
-      if (ldM) out.list_date = parseDate(ldM[1]);
-      return out;
-    } catch { continue; }
+async function enrichOne(raw, log) {
+  const result = await fetchScreenerHTML(raw.symbol);
+  const sc = result ? parseScreenerData(result.html) : null;
+
+  // Get listing date from Screener if not already known
+  let listDate = raw.list_date;
+  if (!listDate && result?.html) {
+    const ldPatterns = [
+      /Listed\s*(?:Date)?\s*<\/[^>]+>\s*<[^>]+>\s*([A-Za-z]+\s+\d{4})/i,
+      /Listing\s+Date[^<]*<\/[^>]+>\s*<[^>]+>\s*([\d\-\/]+)/i,
+      /"listingDate"\s*:\s*"([^"]+)"/i,
+    ];
+    for (const p of ldPatterns) {
+      const m = result.html.match(p);
+      if (m) { listDate = parseAnyDate(m[1]); break; }
+    }
   }
-  return null;
+
+  const price = sc?.price || raw.price;
+  const issuePrice = raw.issue_price;
+
+  return {
+    symbol: raw.symbol,
+    name: raw.name || raw.symbol,
+    sector: sc?.sector || 'N/A',
+    list_date: listDate || null,
+    days_listed: listDate ? daysBetween(listDate) : null,
+    issue_price: issuePrice,
+    price: price,
+    listing_return: issuePrice && price ? Math.round(((price-issuePrice)/issuePrice)*1000)/10 : null,
+    mcap: sc?.mcap || null,
+    pe: sc?.pe || null,
+    avg_val: sc?.avg_val || null
+  };
 }
 
 module.exports = async function handler(req, res) {
@@ -210,43 +169,26 @@ module.exports = async function handler(req, res) {
   const log = [];
   try {
     // Try all sources
-    let listings = await tryNSEEndpoints(log);
-    if (!listings.length) listings = await scrapeNSENewListings(log);
-    if (!listings.length) listings = await screenerNewListings(log);
+    let listings = await fromNSEProxy(log);
+    if (!listings.length) listings = await fromBSE(log);
+    if (!listings.length) listings = await fromScreener(log);
 
-    log.push('Total listings found: ' + listings.length);
-
+    log.push('Raw listings: ' + listings.length);
     if (!listings.length) {
-      return sendOk(res, { count: 0, stocks: [], note: 'No IPO/new listing data found from any source.', diag: log });
+      return sendOk(res, { count: 0, stocks: [], note: 'No IPO listing data available from any source right now.', diag: log });
     }
 
     // Enrich with Screener
-    const BATCH = 5;
     const enriched = [];
+    const BATCH = 4;
     for (let i = 0; i < listings.length; i += BATCH) {
       const batch = listings.slice(i, i + BATCH);
-      const results = await Promise.allSettled(batch.map(s => enrichScreener(s.symbol, log)));
-      for (let j = 0; j < batch.length; j++) {
-        const raw = batch[j];
-        const r = results[j];
-        const sc = r.status === 'fulfilled' ? r.value : null;
-        const listDate = raw.list_date || sc?.list_date;
-        if (listDate && !within12m(listDate)) { log.push(raw.symbol + ': outside 12m'); continue; }
-        const price = sc?.price || raw.price;
-        const issuePrice = raw.issue_price;
-        enriched.push({
-          symbol: raw.symbol,
-          name: raw.name || raw.symbol,
-          sector: sc?.sector || 'N/A',
-          list_date: listDate || '—',
-          days_listed: listDate ? daysBetween(listDate) : null,
-          issue_price: issuePrice,
-          price: price,
-          listing_return: issuePrice && price ? Math.round(((price-issuePrice)/issuePrice)*1000)/10 : null,
-          mcap: sc?.mcap || null,
-          pe: sc?.pe || null,
-          avg_val: null
-        });
+      const results = await Promise.allSettled(batch.map(r => enrichOne(r, log)));
+      for (const r of results) {
+        if (r.status !== 'fulfilled') continue;
+        const s = r.value;
+        if (s.list_date && !within12m(s.list_date)) continue;
+        enriched.push(s);
       }
       if (i + BATCH < listings.length) await sleep(300);
     }
@@ -255,17 +197,15 @@ module.exports = async function handler(req, res) {
     const filtered = applyF(enriched, { priceMin, valMin, MCAP_MIN });
     return sendOk(res, { count: filtered.length, stocks: filtered, diag: log });
   } catch (e) {
-    return sendError(res, 500, 'IPO scan failed: ' + e.message);
+    return sendError(res, 500, 'IPO failed: ' + e.message);
   }
 };
 
 function applyF(stocks, { priceMin, valMin, MCAP_MIN }) {
-  return stocks
-    .filter(s => {
-      if (s.mcap != null && s.mcap < MCAP_MIN) return false;
-      if (s.price != null && s.price < priceMin) return false;
-      if (s.avg_val != null && s.avg_val < valMin) return false;
-      return true;
-    })
-    .sort((a, b) => (a.days_listed || 999) - (b.days_listed || 999));
+  return stocks.filter(s => {
+    if (s.mcap != null && s.mcap < MCAP_MIN) return false;
+    if (s.price != null && s.price < priceMin) return false;
+    if (s.avg_val != null && s.avg_val < valMin) return false;
+    return true;
+  }).sort((a, b) => (a.days_listed||999) - (b.days_listed||999));
 }
