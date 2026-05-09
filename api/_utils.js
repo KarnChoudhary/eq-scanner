@@ -1,55 +1,75 @@
-// api/_utils.js v3
-// NSE blocks Vercel IPs directly. Strategy:
-// 1. Use allorigins.win CORS proxy for NSE API calls
-// 2. Use Yahoo Finance (working) for price data
-// 3. Use Screener.in JSON API (not HTML scrape) for fundamentals
-// 4. Use RapidAPI-free alternatives where needed
+// _utils.js v4
+// Working sources confirmed: Yahoo Finance, Screener.in, Moneycontrol
+// Dead: allorigins proxy (timeout), NSE direct (403), BSE direct (HTML error)
+// New proxy strategy: use multiple free CORS proxies with short timeouts
 
-const PROXY = 'https://api.allorigins.win/raw?url=';
-const PROXY2 = 'https://corsproxy.io/?';
+const PROXIES = [
+  'https://corsproxy.io/?',
+  'https://api.codetabs.com/v1/proxy?quest=',
+  'https://thingproxy.freeboard.io/fetch/',
+];
 
-async function fetchViaProxy(url, json = true) {
-  const proxies = [
-    PROXY + encodeURIComponent(url),
-    PROXY2 + encodeURIComponent(url),
-  ];
-  let lastErr;
-  for (const purl of proxies) {
-    try {
-      const r = await fetch(purl, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-      });
-      if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
-      return json ? r.json() : r.text();
-    } catch (e) { lastErr = e; }
+async function fetchWithTimeout(url, opts = {}, ms = 7000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { ...opts, signal: ctrl.signal });
+    clearTimeout(id);
+    return r;
+  } catch (e) {
+    clearTimeout(id);
+    throw e;
   }
-  throw lastErr || new Error('All proxies failed for ' + url);
 }
 
-// Direct fetch with browser-like headers (works for non-NSE sites)
+// Try multiple proxies with short per-proxy timeout
+async function fetchViaProxy(url, json = true) {
+  for (const proxy of PROXIES) {
+    try {
+      const r = await fetchWithTimeout(proxy + encodeURIComponent(url), {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+      }, 6000);
+      if (!r.ok) continue;
+      const ct = r.headers.get('content-type') || '';
+      if (json) {
+        const text = await r.text();
+        // Guard against HTML error pages
+        if (text.trim().startsWith('<')) throw new Error('Got HTML instead of JSON');
+        return JSON.parse(text);
+      }
+      return r.text();
+    } catch (e) {
+      continue; // try next proxy
+    }
+  }
+  throw new Error('All proxies failed for: ' + url);
+}
+
+// Direct fetch — for Screener, Yahoo, Moneycontrol (confirmed working)
 async function fetchDirect(url, json = true, extraHeaders = {}) {
-  const r = await fetch(url, {
+  const r = await fetchWithTimeout(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      'Accept': json ? 'application/json, text/plain, */*' : 'text/html,application/xhtml+xml,*/*',
+      'Accept': json ? 'application/json,*/*' : 'text/html,*/*',
       'Accept-Language': 'en-US,en;q=0.9',
       ...extraHeaders
-    },
-    signal: AbortSignal.timeout(9000)
-  });
+    }
+  }, 8000);
   if (!r.ok) throw new Error('HTTP ' + r.status);
-  return json ? r.json() : r.text();
+  if (json) {
+    const text = await r.text();
+    if (text.trim().startsWith('<')) throw new Error('Got HTML instead of JSON');
+    return JSON.parse(text);
+  }
+  return r.text();
 }
 
-// Yahoo Finance — WORKING. Use for all price data.
+// Yahoo Finance — confirmed working ✅
 async function fetchYahoo(symbol, range = '1y', interval = '1d') {
   const sym = symbol.includes('.') ? symbol : symbol + '.NS';
-  const urls = [
-    `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=${range}&interval=${interval}&includePrePost=false`,
-    `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?range=${range}&interval=${interval}&includePrePost=false`,
-  ];
-  for (const url of urls) {
+  for (const host of ['query1', 'query2']) {
     try {
+      const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${sym}?range=${range}&interval=${interval}&includePrePost=false`;
       const data = await fetchDirect(url, true, { 'Referer': 'https://finance.yahoo.com/' });
       const result = data?.chart?.result?.[0];
       if (result) return result;
@@ -58,100 +78,71 @@ async function fetchYahoo(symbol, range = '1y', interval = '1d') {
   throw new Error('Yahoo failed for ' + symbol);
 }
 
-// Screener.in JSON API — works better than HTML scrape
-// Screener has an undocumented JSON endpoint
-async function fetchScreenerJSON(symbol) {
-  const urls = [
-    `https://www.screener.in/api/company/search/?q=${symbol}`,
-    `https://www.screener.in/company/${symbol}/`,
-  ];
-  // Try JSON search first
-  try {
-    const data = await fetchDirect(
-      `https://www.screener.in/api/company/search/?q=${encodeURIComponent(symbol)}&v=3`,
-      true,
-      { 'Referer': 'https://www.screener.in/', 'X-Requested-With': 'XMLHttpRequest' }
-    );
-    if (Array.isArray(data) && data.length) return { searchResults: data };
-  } catch {}
-  return null;
-}
-
-// Screener HTML with better selectors
+// Screener.in HTML — confirmed working ✅ (but price field needs fix)
 async function fetchScreenerHTML(symbol) {
-  const pages = [
+  for (const url of [
     `https://www.screener.in/company/${symbol}/consolidated/`,
-    `https://www.screener.in/company/${symbol}/`,
-  ];
-  for (const url of pages) {
+    `https://www.screener.in/company/${symbol}/`
+  ]) {
     try {
       const html = await fetchDirect(url, false, { 'Referer': 'https://www.screener.in/' });
-      if (html && html.length > 5000) return { html, url };
+      if (html && html.length > 3000) return html;
     } catch {}
   }
   return null;
 }
 
-function parseScreenerData(html) {
+// Parse Screener HTML — fixed price detection
+function parseScreener(html) {
   const out = { price: null, mcap: null, pe: null, sector: 'N/A', avg_val: null, quarters: [] };
   if (!html) return out;
   try {
-    // Price — multiple patterns
+    // Price — Screener shows price in multiple ways, try all
     const prPatterns = [
-      /class="[^"]*number[^"]*"[^>]*>\s*([\d,]+\.?\d*)/,
-      /"price"\s*:\s*([\d.]+)/,
-      /₹\s*([\d,]+\.?\d*)\s*<\/span>/,
+      // Main price in top section
+      /<span[^>]*class="[^"]*number[^"]*"[^>]*>\s*([\d,]+\.?\d*)\s*<\/span>/,
+      // JSON embedded in page
+      /"price"\s*:\s*"?([\d.]+)"?/,
+      // Ratio section current price
       /Current Price[^<]*<\/[^>]+>[^<]*<[^>]+>\s*₹?\s*([\d,]+\.?\d*)/i,
+      // Any span with rupee symbol nearby
+      /₹\s*([\d,]+\.?\d*)/,
+      // Data attribute
+      /data-price="([\d.]+)"/,
     ];
     for (const p of prPatterns) {
       const m = html.match(p);
-      if (m) { out.price = parseFloat(m[1].replace(/,/g, '')); break; }
+      if (m) {
+        const v = parseFloat(m[1].replace(/,/g, ''));
+        if (v > 0 && v < 1000000) { out.price = v; break; }
+      }
     }
 
-    // MCap
-    const mcPatterns = [
-      /Market Cap[^<]*<\/[^>]+>\s*<[^>]+>\s*₹?\s*([\d,]+\.?\d*)\s*(?:Cr)?/i,
-      /"market_cap_full"\s*:\s*([\d.]+)/i,
-    ];
-    for (const p of mcPatterns) {
-      const m = html.match(p);
-      if (m) { out.mcap = parseFloat(m[1].replace(/,/g, '')); break; }
-    }
+    // MCap — confirmed working ✓
+    const mcM = html.match(/Market Cap[^<]*<\/[^>]+>\s*<[^>]+>\s*₹?\s*([\d,]+\.?\d*)/i);
+    if (mcM) out.mcap = parseFloat(mcM[1].replace(/,/g, ''));
 
-    // PE
-    const pePatterns = [
-      /Stock P\/E[^<]*<\/[^>]+>\s*<[^>]+>\s*([\d.]+)/i,
-      /"pe"\s*:\s*([\d.]+)/i,
-      /P\/E Ratio[^<]*<\/[^>]+>\s*<[^>]+>\s*([\d.]+)/i,
-    ];
-    for (const p of pePatterns) {
-      const m = html.match(p);
-      if (m) { out.pe = parseFloat(m[1]); break; }
-    }
+    // PE — confirmed working ✓
+    const peM = html.match(/Stock P\/E[^<]*<\/[^>]+>\s*<[^>]+>\s*([\d.]+)/i);
+    if (peM) out.pe = parseFloat(peM[1]);
 
     // Sector
-    const secPatterns = [
-      /"industry"\s*:\s*"([^"]+)"/i,
-      /"sector"\s*:\s*"([^"]+)"/i,
-      /class="[^"]*breadcrumb[^"]*"[^>]*>[\s\S]*?<a[^>]*>([^<]{3,40})<\/a>\s*<\/li>\s*<li/i,
-    ];
-    for (const p of secPatterns) {
-      const m = html.match(p);
-      if (m && m[1].trim().length > 2) { out.sector = m[1].trim(); break; }
-    }
+    const secM = html.match(/"industry"\s*:\s*"([^"]{2,50})"/i)
+      || html.match(/"sector"\s*:\s*"([^"]{2,50})"/i)
+      || html.match(/sector[^<]*<\/[^>]+>[^<]*<[^>]+>([^<]{3,40})<\//i);
+    if (secM) out.sector = secM[1].trim();
 
-    // Quarters — Screener renders in <section id="quarters">
-    // Try to find quarterly financials table
-    const qMatch = html.match(/id="quarters"([\s\S]{0,8000})/i);
-    if (qMatch) {
-      const tbl = qMatch[1];
-      // Quarter headers
-      const hRe = /<th[^>]*>\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[^<]{0,20})<\/th>/gi;
+    // Quarters — confirmed working ✓
+    const qSec = html.match(/id="quarters"([\s\S]{0,6000}?)(?=id="|<\/section>)/i);
+    if (qSec) {
+      const tbl = qSec[1];
+      const hRe = /<th[^>]*>\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[^<]{0,15})<\/th>/gi;
       const hdrs = []; let hm;
-      while ((hm = hRe.exec(tbl)) !== null && hdrs.length < 6) hdrs.push(hm[1].trim());
+      while ((hm = hRe.exec(tbl)) !== null && hdrs.length < 5) hdrs.push(hm[1].trim());
 
-      const getRowNums = (label) => {
-        const re = new RegExp('>' + label + '<[\\s\\S]{0,500}?<\\/tr>', 'i');
+      function getRowNums(label) {
+        const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp('>' + escaped + '<[\\s\\S]{0,400}?<\\/tr>', 'i');
         const rm = tbl.match(re);
         if (!rm) return [];
         const nums = []; const tdRe = /<td[^>]*>\s*([\d,\-]+\.?\d*)\s*<\/td>/g; let tm;
@@ -160,7 +151,7 @@ function parseScreenerData(html) {
           if (!isNaN(v)) nums.push(v);
         }
         return nums;
-      };
+      }
 
       const sales = getRowNums('Sales');
       const pat   = getRowNums('Net Profit');
@@ -169,9 +160,8 @@ function parseScreenerData(html) {
       }
     }
 
-    // Avg daily value estimate
-    const volRe = /(?:10|30)\s*Day\s*Avg[^<]*<\/[^>]+>\s*<[^>]+>\s*([\d,]+)/i;
-    const volM = html.match(volRe);
+    // Avg daily value — estimate from vol if available
+    const volM = html.match(/(?:10|30)\s*Day\s*Avg[^<]*<\/[^>]+>\s*<[^>]+>\s*([\d,]+)/i);
     if (volM && out.price) {
       out.avg_val = Math.round(parseFloat(volM[1].replace(/,/g,'')) * out.price / 1e7 * 10) / 10;
     }
@@ -179,7 +169,7 @@ function parseScreenerData(html) {
   return out;
 }
 
-// EMA calculation
+// EMA
 function calcEMA(closes, period) {
   if (!closes || closes.length < period) return null;
   const k = 2 / (period + 1);
@@ -188,17 +178,17 @@ function calcEMA(closes, period) {
   return Math.round(ema * 100) / 100;
 }
 
-// RS Score (MarketSmith method)
+// RS Score — MarketSmith method
 function calcRS(closes) {
   if (!closes || closes.length < 60) return null;
   const len = closes.length;
-  const perf = (si, ei) => { const s = closes[si], e = closes[Math.min(ei, len) - 1]; return s > 0 ? (e - s) / s : 0; };
-  const q4s = Math.max(0, len - 63), q3s = Math.max(0, len - 126), q2s = Math.max(0, len - 189), q1s = Math.max(0, len - 252);
-  return (perf(q4s, len) * 2 + perf(q3s, q4s) + perf(q2s, q3s) + perf(q1s, q2s)) / 5;
+  const perf = (si, ei) => { const s = closes[si], e = closes[Math.min(ei,len)-1]; return s>0?(e-s)/s:0; };
+  const q4s=Math.max(0,len-63), q3s=Math.max(0,len-126), q2s=Math.max(0,len-189), q1s=Math.max(0,len-252);
+  return (perf(q4s,len)*2 + perf(q3s,q4s) + perf(q2s,q3s) + perf(q1s,q2s)) / 5;
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function sendError(res, status, msg) { return res.status(status).json({ error: true, message: msg }); }
 function sendOk(res, data) { return res.status(200).json({ error: false, ...data }); }
 
-module.exports = { fetchViaProxy, fetchDirect, fetchYahoo, fetchScreenerHTML, parseScreenerData, calcEMA, calcRS, sleep, sendError, sendOk };
+module.exports = { fetchViaProxy, fetchDirect, fetchYahoo, fetchScreenerHTML, parseScreener, calcEMA, calcRS, sleep, sendError, sendOk };

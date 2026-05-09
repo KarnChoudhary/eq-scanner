@@ -1,22 +1,16 @@
-// api/fundamentals.js v3 — batch fundamentals from Screener HTML
-const { fetchScreenerHTML, parseScreenerData, fetchYahoo, sleep, sendError, sendOk } = require('./_utils');
+// fundamentals.js v4 — Screener confirmed working ✅
+const { fetchScreenerHTML, parseScreener, fetchYahoo, sleep, sendError, sendOk } = require('./_utils');
 
-const symCache = {};
-const SYM_TTL = 30 * 60 * 1000;
+const symCache = {}, SYM_TTL = 30 * 60 * 1000;
 
 async function getFundamentals(symbol) {
   const cached = symCache[symbol];
   if (cached && Date.now() - cached.at < SYM_TTL) return cached.data;
-
-  // Try Screener HTML
-  const result = await fetchScreenerHTML(symbol);
   let data = { mcap: null, pe: null, price: null, sector: 'N/A', avg_val: null };
-  if (result) {
-    const parsed = parseScreenerData(result.html);
-    data = { mcap: parsed.mcap, pe: parsed.pe, price: parsed.price, sector: parsed.sector, avg_val: parsed.avg_val };
-  }
-
-  // If price missing, get from Yahoo
+  try {
+    const html = await fetchScreenerHTML(symbol);
+    if (html) { const p = parseScreener(html); data = { mcap: p.mcap, pe: p.pe, price: p.price, sector: p.sector, avg_val: p.avg_val }; }
+  } catch {}
   if (!data.price) {
     try {
       const chart = await fetchYahoo(symbol, '5d', '1d');
@@ -24,7 +18,6 @@ async function getFundamentals(symbol) {
       if (closes?.length) data.price = Math.round(closes[closes.length-1]*100)/100;
     } catch {}
   }
-
   symCache[symbol] = { data, at: Date.now() };
   return data;
 }
