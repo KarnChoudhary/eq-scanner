@@ -9,306 +9,239 @@
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  --bg:       #07090f;
-  --bg2:      #0d1117;
-  --bg3:      #141920;
-  --surface:  #181f2b;
-  --surface2: #1e2736;
-  --border:   rgba(255,255,255,0.06);
-  --border2:  rgba(255,255,255,0.12);
-  --accent:   #00c896;
-  --accent2:  #3b82f6;
-  --text:     #e2e8f4;
-  --text2:    #7e8fa8;
-  --text3:    #3d4f68;
-  --danger:   #f43f5e;
-  --warn:     #f59e0b;
-  --green:    #22c55e;
-  --font-ui:  'Syne', sans-serif;
-  --font-mono:'JetBrains Mono', monospace;
+  --bg:#07090f; --bg2:#0d1117; --bg3:#141920;
+  --surface:#1c2333; --surface2:#232d42;
+  --border:rgba(255,255,255,0.08); --border2:rgba(255,255,255,0.15);
+  --accent:#00d4a0; --accent2:#4f9cf9;
+  --text:#f0f4ff; --text2:#b8c5dc; --text3:#6b7fa0;
+  --danger:#ff5275; --warn:#ffb340; --green:#36d97b;
+  --font-ui:'Syne',sans-serif; --font-mono:'JetBrains Mono',monospace;
 }
 .lm {
-  --bg:#f5f7fc; --bg2:#edf0f7; --bg3:#e3e8f2;
-  --surface:#fff; --surface2:#f0f4fb;
-  --border:rgba(0,0,0,0.07); --border2:rgba(0,0,0,0.13);
-  --text:#0f172a; --text2:#475569; --text3:#94a3b8;
-  --accent:#059669; --accent2:#2563eb;
+  --bg:#f0f4fb; --bg2:#e4eaf5; --bg3:#d8e0f0;
+  --surface:#ffffff; --surface2:#eef2fb;
+  --border:rgba(0,0,0,0.08); --border2:rgba(0,0,0,0.16);
+  --text:#0a0f1e; --text2:#334466; --text3:#7a8aa8;
+  --accent:#009d77; --accent2:#1a6fd4;
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
 body{font-family:var(--font-ui);background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100vh;transition:background .25s,color .25s}
 
-/* ── TOPBAR ── */
-.topbar{display:flex;align-items:center;gap:12px;padding:0 16px;height:50px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
+.topbar{display:flex;align-items:center;gap:12px;padding:0 16px;height:50px;background:var(--bg2);border-bottom:1px solid var(--border2);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
 .topbar::-webkit-scrollbar{display:none}
-.logo{font-family:var(--font-mono);font-size:24px;font-weight:500;color:var(--accent);letter-spacing:-2px;flex-shrink:0;line-height:1}
+.logo{font-family:var(--font-mono);font-size:26px;font-weight:500;color:var(--accent);letter-spacing:-2px;flex-shrink:0}
 .logo-sub{font-family:var(--font-ui);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:2.5px;margin-left:8px;flex-shrink:0}
 .vsep{width:1px;height:22px;background:var(--border2);flex-shrink:0}
 .fgroup{display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0}
-.flabel{font-size:8.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-family:var(--font-mono);white-space:nowrap}
+.flabel{font-size:8.5px;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;font-family:var(--font-mono);white-space:nowrap}
 .finput{background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:var(--font-mono);font-size:11.5px;padding:3px 6px;border-radius:4px;width:76px;text-align:center;outline:none;transition:border-color .2s}
 .finput:focus{border-color:var(--accent)}
-.btn-apply{background:var(--accent);color:#fff;border:none;font-family:var(--font-ui);font-size:11px;font-weight:600;padding:5px 13px;border-radius:5px;cursor:pointer;flex-shrink:0;letter-spacing:.4px;transition:opacity .2s}
+.btn-apply{background:var(--accent);color:#000;border:none;font-family:var(--font-ui);font-size:11px;font-weight:700;padding:5px 13px;border-radius:5px;cursor:pointer;flex-shrink:0;transition:opacity .2s}
 .btn-apply:hover{opacity:.85}
 .btn-icon{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-size:16px;width:30px;height:30px;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
 .btn-icon:hover{border-color:var(--accent);color:var(--accent)}
 
-/* ── WATCHLIST BAR ── */
-.wlbar{display:flex;align-items:center;gap:10px;padding:0 16px;height:34px;background:var(--bg3);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
+.wlbar{display:flex;align-items:center;gap:10px;padding:0 16px;height:34px;background:var(--bg3);border-bottom:1px solid var(--border2);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
 .wlbar::-webkit-scrollbar{display:none}
-.wl-label{font-family:var(--font-mono);font-size:10px;color:var(--text3);white-space:nowrap}
+.wl-label{font-family:var(--font-mono);font-size:10px;color:var(--text2);white-space:nowrap}
 .btn-upload{background:transparent;border:1px solid var(--border2);color:var(--text2);font-family:var(--font-ui);font-size:10.5px;padding:3px 9px;border-radius:4px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .2s;white-space:nowrap}
 .btn-upload:hover{border-color:var(--accent2);color:var(--accent2)}
-.wl-pill{font-family:var(--font-mono);font-size:10px;color:var(--accent);background:rgba(0,200,150,.1);padding:2px 8px;border-radius:20px;border:1px solid rgba(0,200,150,.2);white-space:nowrap}
+.wl-pill{font-family:var(--font-mono);font-size:10px;color:var(--accent);background:rgba(0,212,160,.12);padding:2px 8px;border-radius:20px;border:1px solid rgba(0,212,160,.3);white-space:nowrap}
 .btn-clear{font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;transition:color .2s;white-space:nowrap}
 .btn-clear:hover{color:var(--danger)}
 .wl-spacer{flex:1;min-width:12px}
 .status-ts{font-family:var(--font-mono);font-size:9.5px;color:var(--text3);white-space:nowrap}
+.btn-health{background:transparent;border:1px solid var(--border2);color:var(--text3);font-family:var(--font-mono);font-size:9.5px;padding:2px 8px;border-radius:4px;cursor:pointer;transition:all .2s;white-space:nowrap;text-decoration:none;display:flex;align-items:center;gap:4px}
+.btn-health:hover{border-color:var(--warn);color:var(--warn)}
 
-/* ── TABS ── */
-.tabnav{display:flex;align-items:flex-end;gap:2px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
-.tabbt{padding:9px 16px 8px;font-family:var(--font-ui);font-size:11.5px;font-weight:500;color:var(--text3);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;white-space:nowrap}
+.tabnav{display:flex;align-items:flex-end;gap:2px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--border2);flex-shrink:0}
+.tabbt{padding:9px 16px 8px;font-family:var(--font-ui);font-size:11.5px;font-weight:600;color:var(--text3);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;white-space:nowrap}
 .tabbt:hover{color:var(--text2)}
 .tabbt.on{color:var(--text);border-bottom-color:var(--accent)}
-.tabbt .ti{font-size:14px}
 .tbadge{background:var(--surface2);color:var(--text3);font-family:var(--font-mono);font-size:9.5px;padding:1px 6px;border-radius:10px;transition:all .2s}
-.tabbt.on .tbadge{background:rgba(0,200,150,.15);color:var(--accent)}
+.tabbt.on .tbadge{background:rgba(0,212,160,.18);color:var(--accent)}
 
-/* ── SCAN PANE ── */
 .scan-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .pane{display:none;flex-direction:column;flex:1;overflow:hidden}
 .pane.on{display:flex}
 
-/* Scan filter strip */
-.sfilters{display:flex;align-items:center;gap:14px;padding:8px 16px;background:var(--bg3);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
-.sf-label{font-family:var(--font-mono);font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;white-space:nowrap}
-.sf-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2)}
+.sfilters{display:flex;align-items:center;gap:14px;padding:8px 16px;background:var(--bg3);border-bottom:1px solid var(--border2);flex-shrink:0;flex-wrap:wrap}
+.sf-label{font-family:var(--font-mono);font-size:9.5px;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;white-space:nowrap}
+.sf-item{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text2)}
 .sf-item input[type=range]{width:90px;accent-color:var(--accent)}
-.sf-val{font-family:var(--font-mono);font-size:11px;color:var(--accent);min-width:34px}
+.sf-val{font-family:var(--font-mono);font-size:11.5px;color:var(--accent);min-width:34px;font-weight:600}
 .sf-chip{font-size:10.5px;background:var(--surface2);color:var(--text2);padding:2px 9px;border-radius:20px;border:1px solid var(--border2);white-space:nowrap}
-.sf-chip.hi{background:rgba(0,200,150,.1);color:var(--accent);border-color:rgba(0,200,150,.25)}
+.sf-chip.hi{background:rgba(0,212,160,.1);color:var(--accent);border-color:rgba(0,212,160,.3)}
 
-/* Toggle group */
 .tgrp{display:flex;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;overflow:hidden}
-.topt{padding:4px 12px;font-size:10.5px;font-weight:500;color:var(--text3);background:none;border:none;cursor:pointer;font-family:var(--font-ui);transition:all .2s;letter-spacing:.3px}
-.topt.on{background:var(--accent);color:#fff}
+.topt{padding:4px 13px;font-size:10.5px;font-weight:600;color:var(--text3);background:none;border:none;cursor:pointer;font-family:var(--font-ui);transition:all .2s}
+.topt.on{background:var(--accent);color:#000}
 
-/* Toolbar */
-.toolbar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
-.t-title{font-size:13px;font-weight:600;color:var(--text)}
-.t-sub{font-size:10.5px;color:var(--text3);font-family:var(--font-mono)}
+.toolbar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border2);flex-shrink:0}
+.t-title{font-size:13.5px;font-weight:700;color:var(--text)}
+.t-sub{font-size:10.5px;color:var(--text2);font-family:var(--font-mono);margin-top:1px}
 .t-spacer{flex:1}
-.btn-run{background:var(--accent);color:#fff;border:none;font-family:var(--font-ui);font-size:11px;font-weight:600;padding:6px 14px;border-radius:5px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:opacity .2s}
+.btn-run{background:var(--accent);color:#000;border:none;font-family:var(--font-ui);font-size:11px;font-weight:700;padding:6px 14px;border-radius:5px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:opacity .2s}
 .btn-run:hover{opacity:.85}
 .btn-run:disabled{opacity:.4;cursor:not-allowed}
 .btn-ex{background:transparent;border:1px solid var(--border2);color:var(--text2);font-family:var(--font-ui);font-size:10.5px;padding:5px 11px;border-radius:5px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .2s;white-space:nowrap}
 .btn-ex:hover{border-color:var(--accent2);color:var(--accent2)}
-.btn-ex.z{border-color:rgba(20,160,120,.35);color:#14a078}
-.btn-ex.z:hover{border-color:#14a078;background:rgba(20,160,120,.08)}
-.btn-ex.u{border-color:rgba(124,58,237,.35);color:#7c3aed}
-.btn-ex.u:hover{border-color:#7c3aed;background:rgba(124,58,237,.08)}
+.btn-ex.z{border-color:rgba(20,180,130,.4);color:#14c494}
+.btn-ex.z:hover{border-color:#14c494;background:rgba(20,180,130,.1)}
+.btn-ex.u{border-color:rgba(140,70,255,.4);color:#a070ff}
+.btn-ex.u:hover{border-color:#a070ff;background:rgba(140,70,255,.1)}
 
-/* Content + table */
 .scontent{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--surface2) transparent}
 .state-box{padding:60px 20px;text-align:center;color:var(--text3)}
 .state-box .ti{font-size:34px;display:block;margin-bottom:10px}
-.state-box p{font-size:12.5px;line-height:1.7}
-.state-box .hint{font-size:10.5px;margin-top:5px;font-family:var(--font-mono)}
+.state-box p{font-size:13px;line-height:1.7;color:var(--text2)}
+.state-box .hint{font-size:10.5px;margin-top:5px;font-family:var(--font-mono);color:var(--text3)}
 .spinner{width:26px;height:26px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .75s linear infinite;margin:0 auto 10px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-.twrap{overflow-x:auto;padding:0}
+.twrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--font-mono);min-width:860px}
-thead tr{background:var(--surface);position:sticky;top:0;z-index:10}
-th{padding:8px 11px;text-align:left;color:var(--text3);font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;font-weight:500;cursor:pointer;white-space:nowrap;user-select:none;border-bottom:1px solid var(--border2)}
-th:hover{color:var(--text2)}
-th .ti{font-size:11px;vertical-align:-1px}
+thead tr{background:var(--surface);position:sticky;top:0;z-index:10;box-shadow:0 1px 0 var(--border2)}
+th{padding:8px 11px;text-align:left;color:var(--text2);font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;font-weight:600;cursor:pointer;white-space:nowrap;user-select:none}
+th:hover{color:var(--text)}
 td{padding:8px 11px;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap;vertical-align:middle}
 tbody tr{transition:background .12s}
 tbody tr:hover{background:var(--surface)}
-tbody tr.sel{background:rgba(0,200,150,.05)}
-tbody tr.sel:hover{background:rgba(0,200,150,.09)}
+tbody tr.sel{background:rgba(0,212,160,.07)}
+tbody tr.sel:hover{background:rgba(0,212,160,.11)}
 
-/* Cell types */
-.sym{font-weight:500;color:var(--accent2);font-size:12.5px}
+.sym{font-weight:700;color:var(--accent2);font-size:12.5px}
 .cname{color:var(--text2);font-family:var(--font-ui);font-size:11.5px;max-width:130px;overflow:hidden;text-overflow:ellipsis}
-.pos{color:var(--green)}
-.neg{color:var(--danger)}
+.pos{color:var(--green);font-weight:600}
+.neg{color:var(--danger);font-weight:600}
 .na{color:var(--text3);font-size:10.5px}
-.sector-tag{font-size:10px;background:var(--surface2);color:var(--text3);padding:2px 7px;border-radius:10px;font-family:var(--font-ui);white-space:nowrap}
-.rs-badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10.5px;font-weight:500}
-.rs-hi{background:rgba(0,200,150,.15);color:var(--accent);border:1px solid rgba(0,200,150,.3)}
-.rs-mid{background:rgba(245,158,11,.15);color:var(--warn);border:1px solid rgba(245,158,11,.3)}
-.days-badge{font-size:10px;background:var(--surface2);padding:2px 7px;border-radius:10px}
+.sector-tag{font-size:10px;background:var(--surface2);color:var(--text2);padding:2px 7px;border-radius:10px;font-family:var(--font-ui);white-space:nowrap;border:1px solid var(--border)}
+.rs-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700}
+.rs-hi{background:rgba(0,212,160,.18);color:var(--accent);border:1px solid rgba(0,212,160,.4)}
+.rs-mid{background:rgba(255,179,64,.18);color:var(--warn);border:1px solid rgba(255,179,64,.4)}
+.days-badge{font-size:10px;background:var(--surface2);padding:2px 7px;border-radius:10px;color:var(--text2);border:1px solid var(--border)}
 .links{display:flex;gap:5px}
-.lnk{font-size:9.5px;padding:3px 7px;border-radius:4px;text-decoration:none;font-family:var(--font-ui);font-weight:600;transition:all .2s;display:flex;align-items:center;gap:3px;letter-spacing:.3px}
-.lnk-tv{background:rgba(41,98,255,.1);color:#4f80ff;border:1px solid rgba(41,98,255,.2)}
-.lnk-tv:hover{background:rgba(41,98,255,.22)}
-.lnk-up{background:rgba(124,58,237,.1);color:#9d6ef5;border:1px solid rgba(124,58,237,.2)}
-.lnk-up:hover{background:rgba(124,58,237,.22)}
+.lnk{font-size:9.5px;padding:3px 8px;border-radius:4px;text-decoration:none;font-family:var(--font-ui);font-weight:700;transition:all .2s;display:flex;align-items:center;gap:3px}
+.lnk-tv{background:rgba(41,98,255,.15);color:#7ab0ff;border:1px solid rgba(41,98,255,.3)}
+.lnk-tv:hover{background:rgba(41,98,255,.3);color:#a8c8ff}
+.lnk-up{background:rgba(140,70,255,.15);color:#c09aff;border:1px solid rgba(140,70,255,.3)}
+.lnk-up:hover{background:rgba(140,70,255,.3);color:#d4baff}
 .chk{accent-color:var(--accent);width:13px;height:13px;cursor:pointer}
 
-/* Statusbar */
-.statusbar{display:flex;align-items:center;gap:12px;padding:4px 16px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0}
-.sdot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 5px var(--accent);animation:pulse 2s infinite}
+.statusbar{display:flex;align-items:center;gap:12px;padding:4px 16px;background:var(--bg2);border-top:1px solid var(--border2);flex-shrink:0}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 5px var(--accent);animation:pulse 2s infinite;flex-shrink:0}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-.stext{font-family:var(--font-mono);font-size:9.5px;color:var(--text3)}
+.stext{font-family:var(--font-mono);font-size:9.5px;color:var(--text2)}
 .sspacer{flex:1}
 
-/* Error banner */
-.err-banner{background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);border-radius:6px;padding:10px 14px;margin:12px 16px;font-size:11.5px;color:var(--danger);display:flex;align-items:center;gap:10px}
-.btn-retry{background:rgba(244,63,94,.15);border:1px solid rgba(244,63,94,.3);color:var(--danger);font-size:10.5px;padding:3px 10px;border-radius:4px;cursor:pointer;font-family:var(--font-ui);transition:all .2s}
-.btn-retry:hover{background:rgba(244,63,94,.25)}
+.err-banner{background:rgba(255,82,117,.1);border:1px solid rgba(255,82,117,.3);border-radius:6px;padding:10px 14px;margin:12px 16px;font-size:12px;color:var(--danger);display:flex;align-items:flex-start;gap:10px}
+.btn-retry{background:rgba(255,82,117,.15);border:1px solid rgba(255,82,117,.4);color:var(--danger);font-size:10.5px;padding:3px 10px;border-radius:4px;cursor:pointer;font-family:var(--font-ui);font-weight:600;transition:all .2s;flex-shrink:0;margin-top:2px}
+.btn-retry:hover{background:rgba(255,82,117,.28)}
+.note-bar{font-family:var(--font-mono);font-size:9.5px;color:var(--text2);padding:5px 16px;background:rgba(255,179,64,.08);border-bottom:1px solid rgba(255,179,64,.2)}
 
-/* Note bar */
-.note-bar{font-family:var(--font-mono);font-size:9.5px;color:var(--text3);padding:5px 16px;background:var(--bg3);border-bottom:1px solid var(--border);flex-shrink:0}
+/* Health modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;width:100%;max-width:720px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border2);position:sticky;top:0;background:var(--bg2)}
+.modal-title{font-size:14px;font-weight:700;color:var(--text)}
+.modal-close{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:2px 6px;border-radius:4px}
+.modal-close:hover{color:var(--text);background:var(--surface)}
+.modal-body{padding:16px 20px}
+.health-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.health-row:last-child{border:none}
+.hstatus{font-size:10px;font-weight:700;font-family:var(--font-mono);padding:2px 8px;border-radius:10px;flex-shrink:0;min-width:52px;text-align:center}
+.hok{background:rgba(54,217,123,.15);color:var(--green);border:1px solid rgba(54,217,123,.3)}
+.hwarn{background:rgba(255,179,64,.15);color:var(--warn);border:1px solid rgba(255,179,64,.3)}
+.herr{background:rgba(255,82,117,.15);color:var(--danger);border:1px solid rgba(255,82,117,.3)}
+.hname{font-size:11.5px;font-weight:600;color:var(--text);font-family:var(--font-mono)}
+.hdetail{font-size:10.5px;color:var(--text2);font-family:var(--font-mono);margin-top:2px}
+.hsample{font-size:9.5px;color:var(--text3);font-family:var(--font-mono);margin-top:2px;word-break:break-all}
+.hlatency{font-size:9.5px;color:var(--text3);font-family:var(--font-mono);flex-shrink:0}
+.scan-status-row{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-radius:6px;margin-bottom:6px;background:var(--surface)}
+.scan-status-row span:first-child{font-size:11.5px;font-weight:600;color:var(--text)}
+.scan-status-row span:last-child{font-size:11px;color:var(--text2)}
 </style>
 </head>
 <body>
 
-<!-- ── TOPBAR ── -->
 <div class="topbar">
   <div class="logo">I</div>
   <div class="logo-sub">Equity Scanner</div>
   <div class="vsep"></div>
-
-  <div class="fgroup">
-    <span class="flabel">MCap Min (Cr)</span>
-    <input class="finput" id="f_mcap_min" type="number" value="1000" min="0">
-  </div>
-  <div class="fgroup">
-    <span class="flabel">MCap Max (Cr)</span>
-    <input class="finput" id="f_mcap_max" type="number" value="50000" min="0">
-  </div>
-  <div class="fgroup">
-    <span class="flabel">Min Price (₹)</span>
-    <input class="finput" id="f_price_min" type="number" value="20" min="0">
-  </div>
-  <div class="fgroup">
-    <span class="flabel">PE Max (TTM)</span>
-    <input class="finput" id="f_pe_max" type="number" value="35" min="0">
-  </div>
-  <div class="fgroup">
-    <span class="flabel">Min Val Traded (Cr)</span>
-    <input class="finput" id="f_val_min" type="number" value="5" min="0">
-  </div>
+  <div class="fgroup"><span class="flabel">MCap Min (Cr)</span><input class="finput" id="f_mcap_min" type="number" value="1000" min="0"></div>
+  <div class="fgroup"><span class="flabel">MCap Max (Cr)</span><input class="finput" id="f_mcap_max" type="number" value="50000" min="0"></div>
+  <div class="fgroup"><span class="flabel">Min Price (₹)</span><input class="finput" id="f_price_min" type="number" value="20" min="0"></div>
+  <div class="fgroup"><span class="flabel">PE Max (TTM)</span><input class="finput" id="f_pe_max" type="number" value="35" min="0"></div>
+  <div class="fgroup"><span class="flabel">Min Val Traded (Cr)</span><input class="finput" id="f_val_min" type="number" value="5" min="0"></div>
   <button class="btn-apply" onclick="applyGlobalFilters()">Apply</button>
-
   <div class="vsep"></div>
-  <button class="btn-icon" onclick="toggleTheme()" title="Toggle theme" id="themeBtn">
-    <i class="ti ti-sun"></i>
-  </button>
+  <button class="btn-icon" onclick="toggleTheme()" id="themeBtn" title="Toggle theme"><i class="ti ti-sun"></i></button>
 </div>
 
-<!-- ── WATCHLIST BAR ── -->
 <div class="wlbar">
   <span class="wl-label"><i class="ti ti-shield-check" style="font-size:12px;vertical-align:-2px;margin-right:3px"></i>Exclusion Watchlist</span>
   <input type="file" id="wlFile" multiple accept=".csv" style="display:none" onchange="handleWLUpload(event)">
-  <button class="btn-upload" onclick="document.getElementById('wlFile').click()">
-    <i class="ti ti-upload" style="font-size:12px"></i> Upload CSV(s)
-  </button>
+  <button class="btn-upload" onclick="document.getElementById('wlFile').click()"><i class="ti ti-upload" style="font-size:12px"></i> Upload CSV(s)</button>
   <span class="wl-pill" id="wlCount">0 excluded</span>
   <button class="btn-clear" onclick="clearWL()">✕ Clear</button>
   <div class="wl-spacer"></div>
+  <a class="btn-health" href="#" onclick="openHealth();return false;"><i class="ti ti-activity-heartbeat"></i> Health Check</a>
   <span class="status-ts" id="lastUpdated">—</span>
 </div>
 
-<!-- ── TAB NAV ── -->
 <div class="tabnav">
-  <button class="tabbt on" id="tab-s1" onclick="switchTab('s1')">
-    <i class="ti ti-chart-bar-popular"></i> Earnings Surprise <span class="tbadge" id="b-s1">—</span>
-  </button>
-  <button class="tabbt" id="tab-s2" onclick="switchTab('s2')">
-    <i class="ti ti-trending-up"></i> Relative Strength <span class="tbadge" id="b-s2">—</span>
-  </button>
-  <button class="tabbt" id="tab-s3" onclick="switchTab('s3')">
-    <i class="ti ti-rocket"></i> Top Gainers <span class="tbadge" id="b-s3">—</span>
-  </button>
-  <button class="tabbt" id="tab-s4" onclick="switchTab('s4')">
-    <i class="ti ti-star"></i> IPO Stocks <span class="tbadge" id="b-s4">—</span>
-  </button>
+  <button class="tabbt on" id="tab-s1" onclick="switchTab('s1')"><i class="ti ti-chart-bar-popular"></i> Earnings Surprise <span class="tbadge" id="b-s1">—</span></button>
+  <button class="tabbt" id="tab-s2" onclick="switchTab('s2')"><i class="ti ti-trending-up"></i> Relative Strength <span class="tbadge" id="b-s2">—</span></button>
+  <button class="tabbt" id="tab-s3" onclick="switchTab('s3')"><i class="ti ti-rocket"></i> Top Gainers <span class="tbadge" id="b-s3">—</span></button>
+  <button class="tabbt" id="tab-s4" onclick="switchTab('s4')"><i class="ti ti-star"></i> IPO Stocks <span class="tbadge" id="b-s4">—</span></button>
 </div>
 
-<!-- ── SCAN AREA ── -->
 <div class="scan-wrap">
 
-  <!-- SCAN 1: EARNINGS SURPRISE -->
+  <!-- SCAN 1 -->
   <div class="pane on" id="pane-s1">
     <div class="sfilters">
       <span class="sf-label">Thresholds</span>
-      <div class="sf-item">
-        <span>Rev QoQ Min%</span>
-        <input type="range" min="0" max="100" step="5" value="20" id="s1_rev"
-          oninput="document.getElementById('s1rv').textContent=this.value+'%'">
-        <span class="sf-val" id="s1rv">20%</span>
-      </div>
-      <div class="sf-item">
-        <span>PAT QoQ Min%</span>
-        <input type="range" min="0" max="100" step="5" value="20" id="s1_pat"
-          oninput="document.getElementById('s1pv').textContent=this.value+'%'">
-        <span class="sf-val" id="s1pv">20%</span>
-      </div>
+      <div class="sf-item"><span>Rev QoQ Min%</span><input type="range" min="0" max="100" step="5" value="20" id="s1_rev" oninput="document.getElementById('s1rv').textContent=this.value+'%'"><span class="sf-val" id="s1rv">20%</span></div>
+      <div class="sf-item"><span>PAT QoQ Min%</span><input type="range" min="0" max="100" step="5" value="20" id="s1_pat" oninput="document.getElementById('s1pv').textContent=this.value+'%'"><span class="sf-val" id="s1pv">20%</span></div>
       <span class="sf-chip hi" style="margin-left:auto">Last 30 days only</span>
     </div>
     <div class="toolbar">
-      <div>
-        <div class="t-title">Earnings Surprise</div>
-        <div class="t-sub">Both Rev QoQ &amp; PAT QoQ ≥ threshold · Results within 30 days</div>
-      </div>
+      <div><div class="t-title">Earnings Surprise</div><div class="t-sub">Both Rev QoQ &amp; PAT QoQ ≥ threshold · Results within 30 days</div></div>
       <div class="t-spacer"></div>
-      <button class="btn-ex z" onclick="doExport('s1','z')"><i class="ti ti-download"></i> Zerodha CSV</button>
-      <button class="btn-ex u" onclick="doExport('s1','u')"><i class="ti ti-download"></i> Upstox CSV</button>
+      <button class="btn-ex z" onclick="doExport('s1','z')"><i class="ti ti-download"></i> Zerodha</button>
+      <button class="btn-ex u" onclick="doExport('s1','u')"><i class="ti ti-download"></i> Upstox</button>
       <button class="btn-run" id="run-s1" onclick="runScan('s1')"><i class="ti ti-player-play"></i> Run Scan</button>
     </div>
     <div class="scontent" id="sc-s1">
-      <div class="state-box" id="st-s1">
-        <i class="ti ti-chart-bar-popular"></i>
-        <p>Click <strong>Run Scan</strong> to fetch latest earnings surprises</p>
-        <p class="hint">Source: Trendlyne · Screener.in · NSE</p>
-      </div>
+      <div class="state-box"><i class="ti ti-chart-bar-popular"></i><p>Click <strong>Run Scan</strong> to fetch latest earnings surprises</p><p class="hint">Source: NSE · Screener.in · Moneycontrol</p></div>
     </div>
   </div>
 
-  <!-- SCAN 2: RELATIVE STRENGTH -->
+  <!-- SCAN 2 -->
   <div class="pane" id="pane-s2">
     <div class="sfilters">
       <span class="sf-label">RS Filters</span>
-      <div class="sf-item">
-        <span>Min RS Rating</span>
-        <input type="range" min="0" max="99" step="1" value="80" id="s2_rs"
-          oninput="document.getElementById('s2rv').textContent=this.value">
-        <span class="sf-val" id="s2rv">80</span>
-      </div>
-      <div class="sf-item">
-        <span>Max % from 52WH</span>
-        <input type="range" min="1" max="30" step="1" value="10" id="s2_52wh"
-          oninput="document.getElementById('s2wv').textContent=this.value+'%'">
-        <span class="sf-val" id="s2wv">10%</span>
-      </div>
+      <div class="sf-item"><span>Min RS Rating</span><input type="range" min="0" max="99" step="1" value="80" id="s2_rs" oninput="document.getElementById('s2rv').textContent=this.value"><span class="sf-val" id="s2rv">80</span></div>
+      <div class="sf-item"><span>Max % from 52WH</span><input type="range" min="1" max="30" step="1" value="10" id="s2_52wh" oninput="document.getElementById('s2wv').textContent=this.value+'%'"><span class="sf-val" id="s2wv">10%</span></div>
       <span class="sf-chip" style="margin-left:auto">Above EMA200</span>
       <span class="sf-chip hi">Nifty 500 universe</span>
     </div>
     <div class="toolbar">
-      <div>
-        <div class="t-title">Relative Strength</div>
-        <div class="t-sub">RS Rating (MarketSmith method) · Near 52WH · Price > EMA200</div>
-      </div>
+      <div><div class="t-title">Relative Strength</div><div class="t-sub">RS Rating (MarketSmith method) · Near 52WH · Price &gt; EMA200</div></div>
       <div class="t-spacer"></div>
-      <button class="btn-ex z" onclick="doExport('s2','z')"><i class="ti ti-download"></i> Zerodha CSV</button>
-      <button class="btn-ex u" onclick="doExport('s2','u')"><i class="ti ti-download"></i> Upstox CSV</button>
+      <button class="btn-ex z" onclick="doExport('s2','z')"><i class="ti ti-download"></i> Zerodha</button>
+      <button class="btn-ex u" onclick="doExport('s2','u')"><i class="ti ti-download"></i> Upstox</button>
       <button class="btn-run" id="run-s2" onclick="runScan('s2')"><i class="ti ti-player-play"></i> Run Scan</button>
     </div>
     <div class="scontent" id="sc-s2">
-      <div class="state-box" id="st-s2">
-        <i class="ti ti-trending-up"></i>
-        <p>Click <strong>Run Scan</strong> to compute Relative Strength ratings</p>
-        <p class="hint">Source: NSE · Yahoo Finance · Nifty 500 list</p>
-      </div>
+      <div class="state-box"><i class="ti ti-trending-up"></i><p>Click <strong>Run Scan</strong> to compute Relative Strength ratings</p><p class="hint">Source: NSE · Yahoo Finance · Nifty 500 list</p></div>
     </div>
   </div>
 
-  <!-- SCAN 3: TOP GAINERS -->
+  <!-- SCAN 3 -->
   <div class="pane" id="pane-s3">
     <div class="sfilters">
       <span class="sf-label">Period</span>
@@ -321,25 +254,18 @@ tbody tr.sel:hover{background:rgba(0,200,150,.09)}
       <span class="sf-chip hi">Top 20</span>
     </div>
     <div class="toolbar">
-      <div>
-        <div class="t-title">Top Gainers</div>
-        <div class="t-sub" id="s3-sub">Nifty 500 · Top 20 daily gainers</div>
-      </div>
+      <div><div class="t-title">Top Gainers</div><div class="t-sub" id="s3-sub">Nifty 500 · Top 20 daily gainers</div></div>
       <div class="t-spacer"></div>
-      <button class="btn-ex z" onclick="doExport('s3','z')"><i class="ti ti-download"></i> Zerodha CSV</button>
-      <button class="btn-ex u" onclick="doExport('s3','u')"><i class="ti ti-download"></i> Upstox CSV</button>
+      <button class="btn-ex z" onclick="doExport('s3','z')"><i class="ti ti-download"></i> Zerodha</button>
+      <button class="btn-ex u" onclick="doExport('s3','u')"><i class="ti ti-download"></i> Upstox</button>
       <button class="btn-run" id="run-s3" onclick="runScan('s3')"><i class="ti ti-player-play"></i> Run Scan</button>
     </div>
     <div class="scontent" id="sc-s3">
-      <div class="state-box" id="st-s3">
-        <i class="ti ti-rocket"></i>
-        <p>Click <strong>Run Scan</strong> to fetch top gainers</p>
-        <p class="hint">Source: NSE live data · Yahoo Finance</p>
-      </div>
+      <div class="state-box"><i class="ti ti-rocket"></i><p>Click <strong>Run Scan</strong> to fetch top gainers</p><p class="hint">Source: NSE live · Yahoo Finance</p></div>
     </div>
   </div>
 
-  <!-- SCAN 4: IPO STOCKS -->
+  <!-- SCAN 4 -->
   <div class="pane" id="pane-s4">
     <div class="sfilters">
       <span class="sf-label">Active Filters</span>
@@ -348,538 +274,305 @@ tbody tr.sel:hover{background:rgba(0,200,150,.09)}
       <span class="sf-chip hi">Min Price + Avg Value from global</span>
     </div>
     <div class="toolbar">
-      <div>
-        <div class="t-title">IPO Stocks</div>
-        <div class="t-sub">Listed &lt; 12 months · MCap &gt; 500 Cr · NSE only</div>
-      </div>
+      <div><div class="t-title">IPO Stocks</div><div class="t-sub">Listed &lt; 12 months · MCap &gt; 500 Cr · NSE only</div></div>
       <div class="t-spacer"></div>
-      <button class="btn-ex z" onclick="doExport('s4','z')"><i class="ti ti-download"></i> Zerodha CSV</button>
-      <button class="btn-ex u" onclick="doExport('s4','u')"><i class="ti ti-download"></i> Upstox CSV</button>
+      <button class="btn-ex z" onclick="doExport('s4','z')"><i class="ti ti-download"></i> Zerodha</button>
+      <button class="btn-ex u" onclick="doExport('s4','u')"><i class="ti ti-download"></i> Upstox</button>
       <button class="btn-run" id="run-s4" onclick="runScan('s4')"><i class="ti ti-player-play"></i> Run Scan</button>
     </div>
     <div class="scontent" id="sc-s4">
-      <div class="state-box" id="st-s4">
-        <i class="ti ti-star"></i>
-        <p>Click <strong>Run Scan</strong> to find recent IPO listings</p>
-        <p class="hint">Source: NSE listing data · Screener.in</p>
-      </div>
+      <div class="state-box"><i class="ti ti-star"></i><p>Click <strong>Run Scan</strong> to find recent IPO listings</p><p class="hint">Source: NSE listing data · Screener.in</p></div>
     </div>
   </div>
 
 </div>
 
-<!-- ── STATUSBAR ── -->
 <div class="statusbar">
   <div class="sdot"></div>
   <span class="stext" id="s-status">READY</span>
   <div class="sspacer"></div>
   <span class="stext" id="s-sel">0 stocks selected</span>
   <span class="stext" style="color:var(--border2)">|</span>
-  <span class="stext">NSE · Trendlyne · Screener.in · Yahoo Finance</span>
+  <span class="stext">NSE · Screener.in · Yahoo Finance</span>
+</div>
+
+<!-- HEALTH MODAL -->
+<div class="modal-bg" id="healthModal" style="display:none" onclick="if(event.target===this)closeHealth()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title"><i class="ti ti-activity-heartbeat" style="margin-right:6px"></i>Data Source Health Check</span>
+      <button class="modal-close" onclick="closeHealth()">✕</button>
+    </div>
+    <div class="modal-body" id="healthBody">
+      <div style="text-align:center;padding:30px;color:var(--text3)">
+        <div class="spinner" style="margin:0 auto 12px"></div>
+        <p style="font-family:var(--font-mono);font-size:12px">Checking all data sources...</p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════════════════════
-const APP = {
-  tab: 's1',
-  dark: true,
-  period: 'daily',
-  exclusions: new Set(),
-  data: { s1:[], s2:[], s3:[], s4:[] },
-  selected: { s1: new Set(), s2: new Set(), s3: new Set(), s4: new Set() },
-  sortState: { s1:{}, s2:{}, s3:{}, s4:{} },
-  running: { s1:false, s2:false, s3:false, s4:false }
-};
-
-// Detect if running on Vercel (online) or local
-const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-const API_BASE = IS_LOCAL ? 'http://localhost:3000' : '';
-
-// ═══════════════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════════════
-(function init() {
-  // Restore exclusions from localStorage
+// ── UPSTOX URL BUILDER ──────────────────────────────────────────────────
+// Upstox chart format: https://tv.upstox.com/trading-terminal/charts/NSE_EQ%7C{ISIN}
+// We need ISIN for each symbol. We fetch NSE's equity symbol list which includes ISIN.
+// Cache it once per session.
+let isinMap = null;
+async function getISINMap() {
+  if (isinMap) return isinMap;
   try {
-    const saved = localStorage.getItem('eq_exclusions');
-    if (saved) JSON.parse(saved).forEach(s => APP.exclusions.add(s));
-    updateWLPill();
-  } catch(e) {}
+    // NSE provides equity symbol list with ISIN
+    const r = await fetch('/api/isinmap');
+    if (r.ok) { const d = await r.json(); isinMap = d.map || {}; return isinMap; }
+  } catch {}
+  isinMap = {};
+  return isinMap;
+}
 
-  // Restore theme
-  const savedTheme = localStorage.getItem('eq_theme');
-  if (savedTheme === 'light') { APP.dark = false; applyTheme(); }
+function upstoxUrl(symbol, isin) {
+  // With ISIN: https://tv.upstox.com/trading-terminal/charts/NSE_EQ%7C{ISIN}
+  // Without ISIN fallback: https://tv.upstox.com/trading-terminal/charts/NSE_EQ%7CNSE_{SYMBOL}
+  if (isin) return 'https://tv.upstox.com/trading-terminal/charts/NSE_EQ%7C' + encodeURIComponent(isin);
+  return 'https://tv.upstox.com/trading-terminal/charts/NSE_EQ%7C' + symbol;
+}
+
+// ── STATE ──────────────────────────────────────────────────────────────
+const APP = {
+  tab:'s1', dark:true, period:'daily',
+  exclusions: new Set(),
+  data:{ s1:[], s2:[], s3:[], s4:[] },
+  selected:{ s1:new Set(), s2:new Set(), s3:new Set(), s4:new Set() },
+  sortDir:{ s1:{}, s2:{}, s3:{}, s4:{} },
+  running:{ s1:false, s2:false, s3:false, s4:false }
+};
+const IS_LOCAL = location.hostname==='localhost'||location.hostname==='127.0.0.1';
+const API = IS_LOCAL ? 'http://localhost:3000' : '';
+
+(function init(){
+  try { const s=localStorage.getItem('eq_exc'); if(s)JSON.parse(s).forEach(x=>APP.exclusions.add(x)); updateWLPill(); } catch{}
+  try { if(localStorage.getItem('eq_theme')==='light'){APP.dark=false;applyTheme();} } catch{}
 })();
 
-// ═══════════════════════════════════════════════════════
-// THEME
-// ═══════════════════════════════════════════════════════
-function toggleTheme() {
-  APP.dark = !APP.dark;
-  applyTheme();
-  localStorage.setItem('eq_theme', APP.dark ? 'dark' : 'light');
-}
-function applyTheme() {
-  document.body.classList.toggle('lm', !APP.dark);
-  document.getElementById('themeBtn').innerHTML = APP.dark
-    ? '<i class="ti ti-sun"></i>'
-    : '<i class="ti ti-moon"></i>';
+// ── THEME ──────────────────────────────────────────────────────────────
+function toggleTheme(){APP.dark=!APP.dark;applyTheme();try{localStorage.setItem('eq_theme',APP.dark?'dark':'light');}catch{}}
+function applyTheme(){
+  document.body.classList.toggle('lm',!APP.dark);
+  document.getElementById('themeBtn').innerHTML=APP.dark?'<i class="ti ti-sun"></i>':'<i class="ti ti-moon"></i>';
 }
 
-// ═══════════════════════════════════════════════════════
-// TABS
-// ═══════════════════════════════════════════════════════
-function switchTab(id) {
-  document.querySelectorAll('.tabbt').forEach(b => b.classList.remove('on'));
-  document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
-  document.getElementById('tab-' + id).classList.add('on');
-  document.getElementById('pane-' + id).classList.add('on');
-  APP.tab = id;
+// ── TABS ───────────────────────────────────────────────────────────────
+function switchTab(id){
+  document.querySelectorAll('.tabbt').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
+  document.getElementById('tab-'+id).classList.add('on');
+  document.getElementById('pane-'+id).classList.add('on');
+  APP.tab=id;
 }
 
-// ═══════════════════════════════════════════════════════
-// WATCHLIST UPLOAD
-// ═══════════════════════════════════════════════════════
-function handleWLUpload(e) {
-  const files = Array.from(e.target.files);
-  let pending = files.length;
-  if (!pending) return;
-
-  files.forEach(f => {
-    const r = new FileReader();
-    r.onload = ev => {
-      const lines = ev.target.result.split(/\r?\n/);
-      lines.forEach(line => {
-        // Auto-detect first column regardless of header name
-        const sym = line.split(',')[0].replace(/["']/g,'').trim().toUpperCase();
-        if (sym && sym.length > 0 && !/^(TRADINGSYMBOL|TRADING_SYMBOL|SYMBOL|SCRIP|NAME)$/i.test(sym)) {
-          APP.exclusions.add(sym);
-        }
+// ── WATCHLIST ──────────────────────────────────────────────────────────
+function handleWLUpload(e){
+  const files=Array.from(e.target.files); let pending=files.length; if(!pending)return;
+  files.forEach(f=>{
+    const r=new FileReader();
+    r.onload=ev=>{
+      ev.target.result.split(/\r?\n/).forEach(line=>{
+        const sym=line.split(',')[0].replace(/["']/g,'').trim().toUpperCase();
+        if(sym&&sym.length>0&&!/^(TRADINGSYMBOL|TRADING_SYMBOL|SYMBOL|SCRIP)$/i.test(sym))APP.exclusions.add(sym);
       });
-      pending--;
-      if (pending === 0) {
-        updateWLPill();
-        saveExclusions();
-        // Re-render active scan if data exists
-        if (APP.data[APP.tab].length) renderTable(APP.tab);
-      }
+      if(--pending===0){updateWLPill();saveExc();['s1','s2','s3','s4'].forEach(id=>{if(APP.data[id].length)renderTable(id);});}
     };
     r.readAsText(f);
   });
-  e.target.value = '';
+  e.target.value='';
+}
+function clearWL(){if(!APP.exclusions.size)return;if(!confirm('Clear '+APP.exclusions.size+' excluded stocks?'))return;APP.exclusions.clear();updateWLPill();saveExc();}
+function updateWLPill(){document.getElementById('wlCount').textContent=APP.exclusions.size+' excluded';}
+function saveExc(){try{localStorage.setItem('eq_exc',JSON.stringify([...APP.exclusions]));}catch{}}
+
+// ── FILTERS ────────────────────────────────────────────────────────────
+function getGF(){return{mcap_min:+document.getElementById('f_mcap_min').value||0,mcap_max:+document.getElementById('f_mcap_max').value||Infinity,price_min:+document.getElementById('f_price_min').value||0,pe_max:+document.getElementById('f_pe_max').value||Infinity,val_min:+document.getElementById('f_val_min').value||0};}
+function applyGlobalFilters(){['s1','s2','s3','s4'].forEach(id=>{if(APP.data[id].length)renderTable(id);});}
+
+// ── PERIOD ─────────────────────────────────────────────────────────────
+function setPeriod(p){
+  APP.period=p;
+  ['daily','monthly','3month'].forEach(x=>document.getElementById('t3-'+x).classList.toggle('on',x===p));
+  document.getElementById('s3-sub').textContent='Nifty 500 · Top 20 '+(p==='daily'?'daily':(p==='monthly'?'monthly':'three-month'))+' gainers';
 }
 
-function clearWL() {
-  if (!APP.exclusions.size) return;
-  if (!confirm(`Clear ${APP.exclusions.size} excluded stocks?`)) return;
-  APP.exclusions.clear();
-  updateWLPill();
-  saveExclusions();
-  ['s1','s2','s3','s4'].forEach(id => { if (APP.data[id].length) renderTable(id); });
-}
+// ── RUN SCAN ───────────────────────────────────────────────────────────
+async function runScan(id){
+  if(APP.running[id])return;
+  APP.running[id]=true; setRunBtn(id,true); showLoading(id); setStatus('Fetching '+scanName(id)+'...');
+  try{
+    const gf=getGF();
+    const p=new URLSearchParams({mcap_min:gf.mcap_min,mcap_max:gf.mcap_max===Infinity?9999999:gf.mcap_max,price_min:gf.price_min,pe_max:gf.pe_max===Infinity?9999:gf.pe_max,val_min:gf.val_min});
+    let url='';
+    if(id==='s1'){p.set('rev_thresh',document.getElementById('s1_rev').value);p.set('pat_thresh',document.getElementById('s1_pat').value);url=API+'/api/earnings?'+p;}
+    else if(id==='s2'){p.set('rs_min',document.getElementById('s2_rs').value);p.set('from_52wh',document.getElementById('s2_52wh').value);url=API+'/api/rs?'+p;}
+    else if(id==='s3'){p.set('period',APP.period);url=API+'/api/gainers?'+p;}
+    else if(id==='s4'){url=API+'/api/ipo?'+p;}
 
-function updateWLPill() {
-  document.getElementById('wlCount').textContent = APP.exclusions.size + ' excluded';
-}
+    const resp=await fetch(url);
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const json=await resp.json();
+    if(json.error)throw new Error(json.message);
 
-function saveExclusions() {
-  try { localStorage.setItem('eq_exclusions', JSON.stringify([...APP.exclusions])); } catch(e) {}
-}
-
-// ═══════════════════════════════════════════════════════
-// GLOBAL FILTERS
-// ═══════════════════════════════════════════════════════
-function getGF() {
-  return {
-    mcap_min: parseFloat(document.getElementById('f_mcap_min').value) || 0,
-    mcap_max: parseFloat(document.getElementById('f_mcap_max').value) || Infinity,
-    price_min: parseFloat(document.getElementById('f_price_min').value) || 0,
-    pe_max:   parseFloat(document.getElementById('f_pe_max').value) || Infinity,
-    val_min:  parseFloat(document.getElementById('f_val_min').value) || 0
-  };
-}
-
-function applyGlobalFilters() {
-  ['s1','s2','s3','s4'].forEach(id => { if (APP.data[id].length) renderTable(id); });
-}
-
-// ═══════════════════════════════════════════════════════
-// PERIOD (Scan 3)
-// ═══════════════════════════════════════════════════════
-function setPeriod(p) {
-  APP.period = p;
-  ['daily','monthly','3month'].forEach(x => {
-    document.getElementById('t3-' + x).classList.toggle('on', x === p);
-  });
-  const subs = {
-    daily: 'Nifty 500 · Top 20 daily gainers',
-    monthly: 'Nifty 500 · Top 20 monthly gainers',
-    '3month': 'Nifty 500 · Top 20 three-month gainers'
-  };
-  document.getElementById('s3-sub').textContent = subs[p];
-}
-
-// ═══════════════════════════════════════════════════════
-// RUN SCAN
-// ═══════════════════════════════════════════════════════
-async function runScan(id) {
-  if (APP.running[id]) return;
-  APP.running[id] = true;
-  setRunBtn(id, true);
-  showLoading(id);
-  setStatus('Fetching data for ' + scanName(id) + '...');
-
-  try {
-    const gf = getGF();
-    let url = '';
-    const params = new URLSearchParams({
-      mcap_min: gf.mcap_min,
-      mcap_max: gf.mcap_max === Infinity ? 9999999 : gf.mcap_max,
-      price_min: gf.price_min,
-      pe_max: gf.pe_max === Infinity ? 9999 : gf.pe_max,
-      val_min: gf.val_min
-    });
-
-    if (id === 's1') {
-      params.set('rev_thresh', document.getElementById('s1_rev').value);
-      params.set('pat_thresh', document.getElementById('s1_pat').value);
-      url = API_BASE + '/api/earnings?' + params;
-    } else if (id === 's2') {
-      params.set('rs_min', document.getElementById('s2_rs').value);
-      params.set('from_52wh', document.getElementById('s2_52wh').value);
-      url = API_BASE + '/api/rs?' + params;
-    } else if (id === 's3') {
-      params.set('period', APP.period);
-      url = API_BASE + '/api/gainers?' + params;
-    } else if (id === 's4') {
-      url = API_BASE + '/api/ipo?' + params;
-    }
-
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const json = await resp.json();
-
-    if (json.error) throw new Error(json.message);
-
-    APP.data[id] = json.stocks || [];
-
-    // For RS and Gainers: enrich with fundamentals if MCap is null
-    if ((id === 's2' || id === 's3') && APP.data[id].length) {
-      await enrichFundamentals(id);
-    }
-
+    APP.data[id]=json.stocks||[];
+    if((id==='s2'||id==='s3')&&APP.data[id].length)await enrichFundamentals(id);
     renderTable(id);
-    const count = document.getElementById('b-' + id).textContent;
-    setStatus('Scan complete: ' + count + ' stocks found');
-    document.getElementById('lastUpdated').textContent =
-      'Updated: ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+    setStatus('Done · '+document.getElementById('b-'+id).textContent+' stocks found');
+    document.getElementById('lastUpdated').textContent='Updated: '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    if(json.note)showNote(id,json.note);
+  }catch(e){
+    const eid=id; showError(id,e.message,()=>runScan(eid)); setStatus('Error in '+scanName(id));
+  }finally{APP.running[id]=false;setRunBtn(id,false);}
+}
 
-    if (json.note) showNote(id, json.note);
-
-  } catch (e) {
-    console.error(id, e);
-    showError(id, e.message, () => runScan(id));
-    setStatus('Error in ' + scanName(id) + ': ' + e.message);
-  } finally {
-    APP.running[id] = false;
-    setRunBtn(id, false);
+async function enrichFundamentals(id){
+  const nullMcap=APP.data[id].filter(s=>s.mcap===null).map(s=>s.symbol);
+  if(!nullMcap.length)return;
+  const BATCH=20;
+  for(let i=0;i<nullMcap.length;i+=BATCH){
+    const chunk=nullMcap.slice(i,i+BATCH).join(',');
+    try{
+      const r=await fetch(API+'/api/fundamentals?symbols='+chunk);
+      if(!r.ok)continue;
+      const json=await r.json();
+      if(json.error||!json.fundamentals)continue;
+      APP.data[id].forEach(s=>{const f=json.fundamentals[s.symbol];if(!f)return;if(f.mcap!=null)s.mcap=f.mcap;if(f.pe!=null)s.pe=f.pe;if(f.sector&&s.sector==='N/A')s.sector=f.sector;if(f.avg_val!=null)s.avg_val=f.avg_val;});
+    }catch{}
   }
 }
 
-async function enrichFundamentals(id) {
-  const nullMcap = APP.data[id].filter(s => s.mcap === null).map(s => s.symbol);
-  if (!nullMcap.length) return;
-
-  const BATCH = 20;
-  for (let i = 0; i < nullMcap.length; i += BATCH) {
-    const chunk = nullMcap.slice(i, i + BATCH).join(',');
-    try {
-      const resp = await fetch(API_BASE + '/api/fundamentals?symbols=' + chunk);
-      if (!resp.ok) continue;
-      const json = await resp.json();
-      if (json.error || !json.fundamentals) continue;
-
-      APP.data[id].forEach(s => {
-        const f = json.fundamentals[s.symbol];
-        if (!f) return;
-        if (f.mcap !== null) s.mcap = f.mcap;
-        if (f.pe !== null) s.pe = f.pe;
-        if (f.sector && s.sector === 'N/A') s.sector = f.sector;
-        if (f.avg_val !== null) s.avg_val = f.avg_val;
-        if (f.price !== null && !s.price) s.price = f.price;
-      });
-    } catch (e) {
-      console.warn('Fundamentals enrichment failed for chunk:', e.message);
-    }
-  }
-}
-
-// ═══════════════════════════════════════════════════════
-// RENDER TABLE
-// ═══════════════════════════════════════════════════════
-function renderTable(id) {
-  const gf = getGF();
-  const raw = APP.data[id];
-
-  // Apply filters
-  const rows = raw.filter(s => {
-    if (APP.exclusions.has(s.symbol)) return false;
-    if (id !== 's4') {
-      if (s.mcap !== null && (s.mcap < gf.mcap_min || s.mcap > gf.mcap_max)) return false;
-      if (s.pe !== null && s.pe > gf.pe_max) return false;
-    }
-    if (s.price !== null && s.price < gf.price_min) return false;
-    if (s.avg_val !== null && s.avg_val < gf.val_min) return false;
+// ── RENDER ─────────────────────────────────────────────────────────────
+function renderTable(id){
+  const gf=getGF();
+  const rows=APP.data[id].filter(s=>{
+    if(APP.exclusions.has(s.symbol))return false;
+    if(id!=='s4'){if(s.mcap!=null&&(s.mcap<gf.mcap_min||s.mcap>gf.mcap_max))return false;if(s.pe!=null&&s.pe>gf.pe_max)return false;}
+    if(s.price!=null&&s.price<gf.price_min)return false;
+    if(s.avg_val!=null&&s.avg_val<gf.val_min)return false;
     return true;
   });
+  document.getElementById('b-'+id).textContent=rows.length;
+  const sc=document.getElementById('sc-'+id);
+  if(!rows.length){sc.innerHTML=`<div class="state-box"><i class="ti ti-filter-off"></i><p>No stocks match current filters</p><p class="hint">Try adjusting global filters or scan thresholds</p></div>`;return;}
 
-  document.getElementById('b-' + id).textContent = rows.length;
+  let headers='';
+  if(id==='s1')headers=`<th><input type="checkbox" class="chk" onchange="selectAll('s1',this.checked)"></th><th onclick="sort('s1','symbol')">Symbol</th><th>Company</th><th>Sector</th><th onclick="sort('s1','result_date')">Result Date</th><th onclick="sort('s1','revenue')">Revenue Cr</th><th onclick="sort('s1','rev_qoq')">Rev QoQ%</th><th onclick="sort('s1','pat')">PAT Cr</th><th onclick="sort('s1','pat_qoq')">PAT QoQ%</th><th onclick="sort('s1','mcap')">MCap Cr</th><th>PE</th><th>Charts</th>`;
+  else if(id==='s2')headers=`<th><input type="checkbox" class="chk" onchange="selectAll('s2',this.checked)"></th><th onclick="sort('s2','symbol')">Symbol</th><th>Company</th><th>Sector</th><th onclick="sort('s2','rs')">RS Rating</th><th onclick="sort('s2','price')">Price ₹</th><th onclick="sort('s2','wh52')">52W High</th><th onclick="sort('s2','from_wh')">% from 52WH</th><th onclick="sort('s2','ema200')">EMA200</th><th onclick="sort('s2','mcap')">MCap Cr</th><th>PE</th><th>Charts</th>`;
+  else if(id==='s3'){const eH=APP.period==='daily'?'Volume':'Price '+(APP.period==='monthly'?'1M':'3M')+' ago';headers=`<th><input type="checkbox" class="chk" onchange="selectAll('s3',this.checked)"></th><th onclick="sort('s3','symbol')">Symbol</th><th>Company</th><th>Sector</th><th onclick="sort('s3','price')">Price ₹</th><th onclick="sort('s3','change_pct')">Change%</th><th>${eH}</th><th onclick="sort('s3','mcap')">MCap Cr</th><th>PE</th><th>Charts</th>`;}
+  else if(id==='s4')headers=`<th><input type="checkbox" class="chk" onchange="selectAll('s4',this.checked)"></th><th onclick="sort('s4','symbol')">Symbol</th><th>Company</th><th>Sector</th><th onclick="sort('s4','list_date')">Listing Date</th><th onclick="sort('s4','days_listed')">Days Listed</th><th onclick="sort('s4','issue_price')">Issue Price</th><th onclick="sort('s4','price')">CMP ₹</th><th onclick="sort('s4','listing_return')">Return%</th><th onclick="sort('s4','mcap')">MCap Cr</th><th>PE</th><th>Charts</th>`;
 
-  const sc = document.getElementById('sc-' + id);
+  const tbody=rows.map(s=>buildRow(id,s)).join('');
+  sc.innerHTML=`<div class="twrap"><table><thead><tr>${headers}</tr></thead><tbody>${tbody}</tbody></table></div>`;
+}
 
-  if (!rows.length) {
-    sc.innerHTML = `<div class="state-box"><i class="ti ti-filter-off"></i>
-      <p>No stocks match current filters</p>
-      <p class="hint">Try adjusting global filters or scan thresholds</p></div>`;
-    return;
+function buildRow(id,s){
+  const sel=APP.selected[id].has(s.symbol);
+  const chk=`<td><input type="checkbox" class="chk" ${sel?'checked':''} onchange="toggleRow('${id}','${s.symbol}',this.checked,this)"></td>`;
+  const symC=`<td class="sym">${s.symbol}</td>`;
+  const nameC=`<td class="cname" title="${esc(s.name||'')}">${esc(s.name||s.symbol)}</td>`;
+  const secC=`<td><span class="sector-tag">${esc(s.sector||'N/A')}</span></td>`;
+  const tvUrl=`https://www.tradingview.com/chart/?symbol=NSE:${s.symbol}`;
+  // Upstox URL uses ISIN — fetch async after render, or use symbol-based URL as immediate fallback
+  const upUrl=`https://tv.upstox.com/trading-terminal/charts/NSE_EQ%7C${s.symbol}`;
+  const links=`<td class="links"><a class="lnk lnk-tv" href="${tvUrl}" target="_blank" rel="noopener"><i class="ti ti-chart-candlestick"></i>TV</a><a class="lnk lnk-up" href="${upUrl}" target="_blank" rel="noopener" id="up-${s.symbol}"><i class="ti ti-trending-up"></i>UP</a></td>`;
+  const pe=s.pe!=null?`<td>${(+s.pe).toFixed(1)}</td>`:`<td class="na">N/A</td>`;
+  const mc=s.mcap!=null?`₹${(+s.mcap).toLocaleString('en-IN')}`:`<span class="na">—</span>`;
+  let cells='';
+  if(id==='s1'){
+    cells=`${chk}${symC}${nameC}${secC}<td style="color:var(--text2)">${s.result_date||'—'}</td><td>${s.revenue!=null?'₹'+(+s.revenue).toLocaleString('en-IN'):'<span class="na">—</span>'}</td><td class="pos">▲ ${(+s.rev_qoq).toFixed(1)}%</td><td>${s.pat!=null?'₹'+(+s.pat).toLocaleString('en-IN'):'<span class="na">—</span>'}</td><td class="pos">▲ ${(+s.pat_qoq).toFixed(1)}%</td><td>${mc}</td>${pe}${links}`;
+  }else if(id==='s2'){
+    const rc=s.rs>=90?'rs-hi':'rs-mid';
+    cells=`${chk}${symC}${nameC}${secC}<td><span class="rs-badge ${rc}">${s.rs}</span></td><td>₹${(+s.price).toLocaleString('en-IN')}</td><td>₹${(+s.wh52).toLocaleString('en-IN')}</td><td class="${(+s.from_wh)<=5?'pos':''}">${(+s.from_wh).toFixed(1)}%</td><td>${s.ema200?'₹'+(+s.ema200).toLocaleString('en-IN'):'<span class="na">—</span>'}</td><td>${mc}</td>${pe}${links}`;
+  }else if(id==='s3'){
+    const cc=(+s.change_pct)>=0?'pos':'neg'; const ar=(+s.change_pct)>=0?'▲':'▼';
+    cells=`${chk}${symC}${nameC}${secC}<td>₹${(+s.price).toLocaleString('en-IN')}</td><td class="${cc}">${ar} ${Math.abs(+s.change_pct).toFixed(1)}%</td><td style="color:var(--text2)">${s.extra||'—'}</td><td>${mc}</td>${pe}${links}`;
+  }else if(id==='s4'){
+    const rc=(+s.listing_return||0)>=0?'pos':'neg'; const ra=(+s.listing_return||0)>=0?'▲':'▼';
+    const ret=s.listing_return!=null?`<td class="${rc}">${ra} ${Math.abs(+s.listing_return).toFixed(1)}%</td>`:`<td class="na">—</td>`;
+    cells=`${chk}${symC}${nameC}${secC}<td style="color:var(--text2)">${s.list_date||'—'}</td><td><span class="days-badge">${s.days_listed||'?'}d</span></td><td>${s.issue_price?'₹'+s.issue_price:'<span class="na">—</span>'}</td><td>₹${(+(s.price||0)).toLocaleString('en-IN')}</td>${ret}<td>${mc}</td>${pe}${links}`;
   }
+  return`<tr class="${sel?'sel':''}">${cells}</tr>`;
+}
 
-  const tbody = rows.map(s => buildRow(id, s)).join('');
+// ── SELECTION ──────────────────────────────────────────────────────────
+function toggleRow(id,sym,checked,el){if(checked)APP.selected[id].add(sym);else APP.selected[id].delete(sym);el.closest('tr').classList.toggle('sel',checked);updateSel();}
+function selectAll(id,checked){document.querySelectorAll(`#sc-${id} tbody tr`).forEach(tr=>{const c=tr.querySelector('input[type=checkbox]');const s=tr.querySelector('.sym')?.textContent;if(!c||!s)return;c.checked=checked;if(checked)APP.selected[id].add(s);else APP.selected[id].delete(s);tr.classList.toggle('sel',checked);});updateSel();}
+function updateSel(){let t=0;Object.values(APP.selected).forEach(s=>t+=s.size);document.getElementById('s-sel').textContent=t+' stock'+(t!==1?'s':'')+' selected';}
 
-  let headers = '';
-  if (id === 's1') {
-    headers = `<th><input type="checkbox" class="chk" onchange="selectAll('s1',this.checked)"></th>
-      <th onclick="sort('s1','symbol')">Symbol <i class="ti ti-selector"></i></th>
-      <th>Company</th><th>Sector</th>
-      <th onclick="sort('s1','result_date')">Result Date <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s1','revenue')">Revenue Cr <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s1','rev_qoq')">Rev QoQ% <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s1','pat')">PAT Cr <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s1','pat_qoq')">PAT QoQ% <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s1','mcap')">MCap Cr <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s1','pe')">PE <i class="ti ti-selector"></i></th><th>Charts</th>`;
-  } else if (id === 's2') {
-    headers = `<th><input type="checkbox" class="chk" onchange="selectAll('s2',this.checked)"></th>
-      <th onclick="sort('s2','symbol')">Symbol <i class="ti ti-selector"></i></th>
-      <th>Company</th><th>Sector</th>
-      <th onclick="sort('s2','rs')">RS Rating <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s2','price')">Price ₹ <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s2','wh52')">52W High <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s2','from_wh')">% from 52WH <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s2','ema200')">EMA200 <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s2','mcap')">MCap Cr <i class="ti ti-selector"></i></th>
-      <th>PE</th><th>Charts</th>`;
-  } else if (id === 's3') {
-    const extraH = APP.period === 'daily' ? 'Volume' : 'Price ' + (APP.period === 'monthly' ? '1M' : '3M') + ' ago';
-    headers = `<th><input type="checkbox" class="chk" onchange="selectAll('s3',this.checked)"></th>
-      <th onclick="sort('s3','symbol')">Symbol <i class="ti ti-selector"></i></th>
-      <th>Company</th><th>Sector</th>
-      <th onclick="sort('s3','price')">Price ₹ <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s3','change_pct')">Change% <i class="ti ti-selector"></i></th>
-      <th>${extraH}</th>
-      <th onclick="sort('s3','mcap')">MCap Cr <i class="ti ti-selector"></i></th>
-      <th>PE</th><th>Charts</th>`;
-  } else if (id === 's4') {
-    headers = `<th><input type="checkbox" class="chk" onchange="selectAll('s4',this.checked)"></th>
-      <th onclick="sort('s4','symbol')">Symbol <i class="ti ti-selector"></i></th>
-      <th>Company</th><th>Sector</th>
-      <th onclick="sort('s4','list_date')">Listing Date <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s4','days_listed')">Days Listed <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s4','issue_price')">Issue Price <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s4','price')">CMP ₹ <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s4','listing_return')">Return% <i class="ti ti-selector"></i></th>
-      <th onclick="sort('s4','mcap')">MCap Cr <i class="ti ti-selector"></i></th>
-      <th>PE</th><th>Charts</th>`;
+// ── SORT ───────────────────────────────────────────────────────────────
+function sort(id,key){const sd=APP.sortDir[id];sd[key]=sd[key]==='desc'?'asc':'desc';const dir=sd[key]==='desc'?-1:1;APP.data[id].sort((a,b)=>{const av=a[key],bv=b[key];if(av==null)return 1;if(bv==null)return -1;return(typeof av==='string'?av.localeCompare(bv):av-bv)*dir;});renderTable(id);}
+
+// ── EXPORT ─────────────────────────────────────────────────────────────
+function doExport(id,broker){
+  const syms=[...APP.selected[id]];
+  if(!syms.length){alert('No stocks selected.\nCheck the boxes on the left of each row.');return;}
+  const col=broker==='z'?'tradingsymbol':'trading_symbol';
+  const csv=col+'\n'+syms.join('\n');
+  const fn=`watchlist_${broker==='z'?'zerodha':'upstox'}_${id}_${yyyymmdd()}.csv`;
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download=fn;a.click();
+}
+function yyyymmdd(){const d=new Date();return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());}
+function pad(n){return String(n).padStart(2,'0');}
+
+// ── HEALTH CHECK ───────────────────────────────────────────────────────
+async function openHealth(){
+  document.getElementById('healthModal').style.display='flex';
+  document.getElementById('healthBody').innerHTML='<div style="text-align:center;padding:30px;color:var(--text3)"><div class="spinner" style="margin:0 auto 12px"></div><p style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">Checking all data sources...</p></div>';
+  try{
+    const r=await fetch(API+'/api/health');
+    if(!r.ok)throw new Error('Health check HTTP '+r.status);
+    const d=await r.json();
+    renderHealth(d);
+  }catch(e){
+    document.getElementById('healthBody').innerHTML=`<div class="err-banner"><i class="ti ti-alert-circle"></i><span>Health check failed: ${esc(e.message)}</span></div>`;
   }
-
-  sc.innerHTML = `<div class="twrap"><table>
-    <thead><tr>${headers}</tr></thead>
-    <tbody>${tbody}</tbody>
-  </table></div>`;
 }
 
-function buildRow(id, s) {
-  const sel = APP.selected[id].has(s.symbol);
-  const selCls = sel ? ' sel' : '';
-  const chk = `<td><input type="checkbox" class="chk" ${sel?'checked':''} onchange="toggleRow('${id}','${s.symbol}',this.checked,this)"></td>`;
-  const symCell = `<td class="sym">${s.symbol}</td>`;
-  const nameCell = `<td class="cname" title="${s.name||''}">${s.name||s.symbol}</td>`;
-  const secCell = `<td><span class="sector-tag">${s.sector||'N/A'}</span></td>`;
-  const tvUrl = `https://www.tradingview.com/chart/?symbol=NSE:${s.symbol}`;
-  const upUrl = `https://upstox.com/stocks/${s.symbol.toLowerCase()}/`;
-  const links = `<td class="links">
-    <a class="lnk lnk-tv" href="${tvUrl}" target="_blank" rel="noopener"><i class="ti ti-chart-candlestick"></i>TV</a>
-    <a class="lnk lnk-up" href="${upUrl}" target="_blank" rel="noopener"><i class="ti ti-trending-up"></i>UP</a>
-  </td>`;
-  const pe = s.pe !== null && s.pe !== undefined
-    ? `<td>${parseFloat(s.pe).toFixed(1)}</td>`
-    : `<td class="na">N/A</td>`;
-  const mcapFmt = s.mcap !== null && s.mcap !== undefined
-    ? `₹${parseFloat(s.mcap).toLocaleString('en-IN')}`
-    : '<span class="na">—</span>';
+function renderHealth(d){
+  const overallColor=d.overall==='HEALTHY'?'var(--green)':d.overall==='PARTIAL'?'var(--warn)':'var(--danger)';
+  let html=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:10px 14px;background:var(--surface);border-radius:8px;border:1px solid var(--border2)">
+    <span style="font-size:22px">${d.overall==='HEALTHY'?'✅':d.overall==='PARTIAL'?'⚠️':'❌'}</span>
+    <div><div style="font-size:14px;font-weight:700;color:${overallColor}">${d.overall}</div>
+    <div style="font-size:11px;font-family:var(--font-mono);color:var(--text2)">${d.summary.ok} OK · ${d.summary.warn} WARN · ${d.summary.error} ERROR · checked ${new Date(d.timestamp).toLocaleTimeString('en-IN')}</div></div>
+  </div>`;
 
-  let cells = '';
-
-  if (id === 's1') {
-    cells = `${chk}${symCell}${nameCell}${secCell}
-      <td style="color:var(--text2)">${s.result_date||'—'}</td>
-      <td>${s.revenue !== null ? '₹' + parseFloat(s.revenue).toLocaleString('en-IN') : '<span class="na">—</span>'}</td>
-      <td class="pos">▲ ${parseFloat(s.rev_qoq).toFixed(1)}%</td>
-      <td>${s.pat !== null ? '₹' + parseFloat(s.pat).toLocaleString('en-IN') : '<span class="na">—</span>'}</td>
-      <td class="pos">▲ ${parseFloat(s.pat_qoq).toFixed(1)}%</td>
-      <td>${mcapFmt}</td>${pe}${links}`;
-  } else if (id === 's2') {
-    const rsCls = s.rs >= 90 ? 'rs-hi' : 'rs-mid';
-    const fromCls = parseFloat(s.from_wh) <= 5 ? 'pos' : '';
-    cells = `${chk}${symCell}${nameCell}${secCell}
-      <td><span class="rs-badge ${rsCls}">${s.rs}</span></td>
-      <td>₹${parseFloat(s.price).toLocaleString('en-IN')}</td>
-      <td>₹${parseFloat(s.wh52).toLocaleString('en-IN')}</td>
-      <td class="${fromCls}">${parseFloat(s.from_wh).toFixed(1)}%</td>
-      <td>${s.ema200 ? '₹' + parseFloat(s.ema200).toLocaleString('en-IN') : '<span class="na">—</span>'}</td>
-      <td>${mcapFmt}</td>${pe}${links}`;
-  } else if (id === 's3') {
-    const chgCls = s.change_pct >= 0 ? 'pos' : 'neg';
-    const arrow = s.change_pct >= 0 ? '▲' : '▼';
-    cells = `${chk}${symCell}${nameCell}${secCell}
-      <td>₹${parseFloat(s.price).toLocaleString('en-IN')}</td>
-      <td class="${chgCls}">${arrow} ${Math.abs(parseFloat(s.change_pct)).toFixed(1)}%</td>
-      <td style="color:var(--text2)">${s.extra||'—'}</td>
-      <td>${mcapFmt}</td>${pe}${links}`;
-  } else if (id === 's4') {
-    const retCls = (s.listing_return||0) >= 0 ? 'pos' : 'neg';
-    const retArrow = (s.listing_return||0) >= 0 ? '▲' : '▼';
-    const ret = s.listing_return !== null
-      ? `<td class="${retCls}">${retArrow} ${Math.abs(parseFloat(s.listing_return)).toFixed(1)}%</td>`
-      : `<td class="na">—</td>`;
-    cells = `${chk}${symCell}${nameCell}${secCell}
-      <td style="color:var(--text2)">${s.list_date||'—'}</td>
-      <td><span class="days-badge">${s.days_listed||'?'}d</span></td>
-      <td>${s.issue_price ? '₹' + s.issue_price : '<span class="na">—</span>'}</td>
-      <td>₹${parseFloat(s.price||0).toLocaleString('en-IN')}</td>
-      ${ret}<td>${mcapFmt}</td>${pe}${links}`;
+  // Scan-level summary
+  html+=`<div style="margin-bottom:16px">`;
+  for(const [scan,status] of Object.entries(d.scan_status)){
+    html+=`<div class="scan-status-row"><span>${scan}</span><span>${status}</span></div>`;
   }
+  html+=`</div><div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.8px">Source Details</div>`;
 
-  return `<tr class="${selCls}" id="tr-${id}-${s.symbol}">${cells}</tr>`;
+  // Per-source rows
+  for(const src of d.sources){
+    const sc=src.status==='OK'?'hok':src.status==='WARN'?'hwarn':'herr';
+    html+=`<div class="health-row">
+      <span class="hstatus ${sc}">${src.status}</span>
+      <div style="flex:1">
+        <div class="hname">${esc(src.name)}</div>
+        <div class="hdetail">${esc(src.detail||'')}</div>
+        ${src.sample?`<div class="hsample">${esc(src.sample)}</div>`:''}
+      </div>
+      <span class="hlatency">${src.latency}ms</span>
+    </div>`;
+  }
+  document.getElementById('healthBody').innerHTML=html;
 }
 
-// ═══════════════════════════════════════════════════════
-// SELECTION
-// ═══════════════════════════════════════════════════════
-function toggleRow(id, symbol, checked, el) {
-  if (checked) APP.selected[id].add(symbol);
-  else APP.selected[id].delete(symbol);
-  el.closest('tr').classList.toggle('sel', checked);
-  updateSelCount();
-}
+function closeHealth(){document.getElementById('healthModal').style.display='none';}
 
-function selectAll(id, checked) {
-  document.querySelectorAll(`#sc-${id} tbody tr`).forEach(tr => {
-    const chk = tr.querySelector('input[type=checkbox]');
-    const sym = tr.querySelector('.sym')?.textContent;
-    if (!chk || !sym) return;
-    chk.checked = checked;
-    if (checked) APP.selected[id].add(sym);
-    else APP.selected[id].delete(sym);
-    tr.classList.toggle('sel', checked);
-  });
-  updateSelCount();
-}
-
-function updateSelCount() {
-  let total = 0;
-  Object.values(APP.selected).forEach(s => total += s.size);
-  document.getElementById('s-sel').textContent = total + ' stock' + (total !== 1 ? 's' : '') + ' selected';
-}
-
-// ═══════════════════════════════════════════════════════
-// SORT
-// ═══════════════════════════════════════════════════════
-function sort(id, key) {
-  const ss = APP.sortState[id];
-  ss[key] = ss[key] === 'desc' ? 'asc' : 'desc';
-  const dir = ss[key] === 'desc' ? -1 : 1;
-  APP.data[id].sort((a, b) => {
-    const av = a[key], bv = b[key];
-    if (av === null || av === undefined) return 1;
-    if (bv === null || bv === undefined) return -1;
-    return typeof av === 'string' ? av.localeCompare(bv) * dir : (av - bv) * dir;
-  });
-  renderTable(id);
-}
-
-// ═══════════════════════════════════════════════════════
-// EXPORT
-// ═══════════════════════════════════════════════════════
-function doExport(id, broker) {
-  const syms = [...APP.selected[id]];
-  if (!syms.length) { alert('No stocks selected in this scan.\nCheck the boxes on the left of each row.'); return; }
-  const col = broker === 'z' ? 'tradingsymbol' : 'trading_symbol';
-  const csv = col + '\n' + syms.join('\n');
-  const fname = `watchlist_${broker === 'z' ? 'zerodha' : 'upstox'}_${id}_${yyyymmdd()}.csv`;
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = fname;
-  a.click();
-}
-
-function yyyymmdd() {
-  const d = new Date();
-  return d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate());
-}
-function pad(n) { return String(n).padStart(2,'0'); }
-
-// ═══════════════════════════════════════════════════════
-// UI HELPERS
-// ═══════════════════════════════════════════════════════
-function showLoading(id) {
-  document.getElementById('sc-' + id).innerHTML =
-    `<div class="state-box"><div class="spinner"></div>
-     <p>Fetching data…</p><p class="hint">Connecting to data sources</p></div>`;
-}
-
-function showError(id, msg, retryFn) {
-  document.getElementById('sc-' + id).innerHTML =
-    `<div class="err-banner"><i class="ti ti-alert-circle"></i>
-     <span>Error: ${escHtml(msg)}</span>
-     <button class="btn-retry" onclick="(${retryFn.toString()})()">Retry</button></div>
-     <div class="state-box" id="st-${id}">
-       <i class="ti ti-wifi-off"></i>
-       <p>Could not fetch data. Check internet connection.</p>
-       <p class="hint">If this persists, the data source may be temporarily unavailable.</p>
-     </div>`;
-}
-
-function showNote(id, note) {
-  const sc = document.getElementById('sc-' + id);
-  const nb = document.createElement('div');
-  nb.className = 'note-bar';
-  nb.textContent = '⚠ ' + note;
-  sc.prepend(nb);
-}
-
-function setRunBtn(id, loading) {
-  const btn = document.getElementById('run-' + id);
-  if (!btn) return;
-  btn.disabled = loading;
-  btn.innerHTML = loading
-    ? '<i class="ti ti-loader-2" style="animation:spin .75s linear infinite"></i> Running…'
-    : '<i class="ti ti-player-play"></i> Run Scan';
-}
-
-function setStatus(msg) {
-  document.getElementById('s-status').textContent = msg;
-}
-
-function scanName(id) {
-  return {s1:'Earnings',s2:'Relative Strength',s3:'Gainers',s4:'IPO'}[id] || id;
-}
-
-function escHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+// ── UI HELPERS ─────────────────────────────────────────────────────────
+function showLoading(id){document.getElementById('sc-'+id).innerHTML=`<div class="state-box"><div class="spinner"></div><p>Fetching data…</p><p class="hint">Connecting to data sources</p></div>`;}
+function showError(id,msg,fn){document.getElementById('sc-'+id).innerHTML=`<div class="err-banner"><i class="ti ti-alert-circle" style="flex-shrink:0;margin-top:1px"></i><div style="flex:1"><strong>Error:</strong> ${esc(msg)}<br><span style="font-size:10.5px;color:var(--text3)">Click Health Check in the toolbar to diagnose which source is down.</span></div><button class="btn-retry" onclick="(${fn.toString()})()">Retry</button></div>`;}
+function showNote(id,note){const sc=document.getElementById('sc-'+id);const nb=document.createElement('div');nb.className='note-bar';nb.textContent='⚠ '+note;sc.prepend(nb);}
+function setRunBtn(id,loading){const btn=document.getElementById('run-'+id);if(!btn)return;btn.disabled=loading;btn.innerHTML=loading?'<i class="ti ti-loader-2" style="animation:spin .75s linear infinite"></i> Running…':'<i class="ti ti-player-play"></i> Run Scan';}
+function setStatus(msg){document.getElementById('s-status').textContent=msg;}
+function scanName(id){return{s1:'Earnings',s2:'Relative Strength',s3:'Gainers',s4:'IPO'}[id]||id;}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 </script>
 </body>
 </html>

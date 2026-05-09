@@ -1,305 +1,209 @@
-// api/earnings.js
-// Scan 1: Earnings Surprise
-// Fetches recent quarterly results from Trendlyne public results calendar
-// Filters: both Rev QoQ% AND PAT QoQ% above threshold, within last 30 days
-// Fundamentals (MCap, PE, Sector) from Screener.in
-
+// api/earnings.js v2 — multi-source, self-diagnosing
 const { sendError, sendOk, sleep } = require('./_utils');
+let cache = null, cacheAt = 0;
+const TTL = 20 * 60 * 1000;
 
-// In-memory cache: 30 min TTL
-let cache = null;
-let cacheAt = 0;
-const TTL = 30 * 60 * 1000;
+function within30d(ds) {
+  if (!ds) return false;
+  try { const d=new Date(ds); const diff=Date.now()-d.getTime(); return diff>=0&&diff<=30*864e5; } catch{return false;}
+}
+function qoq(c,p){ if(c==null||p==null||p===0)return null; return Math.round(((c-p)/Math.abs(p))*1000)/10; }
 
-async function fetchTrendlyneResults() {
-  // Trendlyne's quarterly results page - public, no auth needed
-  // Returns last 30 days of result announcements
-  const url = 'https://trendlyne.com/equity/latest-quarterly-results/';
-  
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.5',
-      'Referer': 'https://trendlyne.com/',
-      'DNT': '1',
-      'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1'
-    }
-  });
-
-  if (!res.ok) throw new Error(`Trendlyne HTTP ${res.status}`);
-  return await res.text();
+let _ck='',_ckat=0;
+async function nCk(){
+  if(_ck&&Date.now()-_ckat<8*6e4)return _ck;
+  try{
+    const r=await fetch('https://www.nseindia.com',{headers:{'User-Agent':'Mozilla/5.0','Accept':'text/html'}});
+    const sc=r.headers.get('set-cookie')||'';
+    _ck=sc.split(',').map(c=>c.split(';')[0].trim()).filter(c=>c.includes('=')).join('; ');
+    _ckat=Date.now();
+  }catch{}
+  return _ck;
 }
 
-async function fetchScreenerQuarterly(symbol) {
-  // Fetch Screener.in company page to get quarterly financials + fundamentals
-  const urls = [
+async function srcNSE(log){
+  try{
+    const ck=await nCk();
+    const r=await fetch('https://www.nseindia.com/api/corporate-announcements?index=equities&subject=Financial+Results',{
+      headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36','Accept':'application/json','Referer':'https://www.nseindia.com/','Cookie':ck}
+    });
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    const rows=Array.isArray(data)?data:(data.data||[]);
+    log.push('NSE announcements: '+rows.length+' rows');
+    const syms=[];
+    for(const r2 of rows){
+      const dt=r2.bcastDt||r2.an_dt||r2.date||'';
+      const sym=(r2.symbol||r2.Symbol||'').trim().toUpperCase();
+      if(sym&&within30d(dt)) syms.push({symbol:sym,result_date:dt});
+    }
+    log.push('NSE within 30d: '+syms.length);
+    return syms;
+  }catch(e){log.push('NSE failed: '+e.message);return[];}
+}
+
+async function srcScreenerList(log){
+  try{
+    const r=await fetch('https://www.screener.in/screens/latest-results/',{
+      headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36','Accept':'text/html','Referer':'https://www.screener.in/'}
+    });
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const html=await r.text();
+    const re=/href="\/company\/([A-Z0-9]+)\/"[^>]*>.*?(\d{1,2}[\s\-]\w+[\s\-]\d{4})/gi;
+    const syms=[]; let m;
+    while((m=re.exec(html))!==null){
+      if(within30d(m[2])) syms.push({symbol:m[1],result_date:m[2]});
+    }
+    log.push('Screener list: '+syms.length+' within 30d');
+    return syms;
+  }catch(e){log.push('Screener list failed: '+e.message);return[];}
+}
+
+async function srcMoneycontrol(log){
+  try{
+    // Moneycontrol results calendar - public
+    const today=new Date();
+    const dd=String(today.getDate()).padStart(2,'0');
+    const mm=String(today.getMonth()+1).padStart(2,'0');
+    const yyyy=today.getFullYear();
+    // 30 days back
+    const past=new Date(Date.now()-30*864e5);
+    const pdd=String(past.getDate()).padStart(2,'0');
+    const pmm=String(past.getMonth()+1).padStart(2,'0');
+    const pyyyy=past.getFullYear();
+    const url=`https://www.moneycontrol.com/markets/earnings/results-calendar/?dateRangeFrom=${pyyyy}-${pmm}-${pdd}&dateRangeTo=${yyyy}-${mm}-${dd}`;
+    const r=await fetch(url,{
+      headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36','Accept':'text/html','Referer':'https://www.moneycontrol.com/'}
+    });
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const html=await r.text();
+    // Parse NSE symbols from data attributes or links
+    const re=/data-nse_code="([A-Z0-9]+)"[^>]*data-result_date="([^"]+)"/gi;
+    const re2=/nse_code=([A-Z0-9]+)[^&]*.*?(\d{4}-\d{2}-\d{2})/gi;
+    const syms=[]; let m;
+    while((m=re.exec(html))!==null){
+      if(within30d(m[2])) syms.push({symbol:m[1],result_date:m[2]});
+    }
+    while((m=re2.exec(html))!==null){
+      if(within30d(m[2])&&!syms.find(s=>s.symbol===m[1])) syms.push({symbol:m[1],result_date:m[2]});
+    }
+    log.push('Moneycontrol: '+syms.length+' within 30d');
+    return syms;
+  }catch(e){log.push('Moneycontrol failed: '+e.message);return[];}
+}
+
+async function getScreener(symbol){
+  const urls=[
     `https://www.screener.in/company/${symbol}/consolidated/`,
     `https://www.screener.in/company/${symbol}/`
   ];
-
-  for (const url of urls) {
-    try {
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Referer': 'https://www.screener.in/'
-        }
-      });
-      if (!res.ok) continue;
-      const html = await res.text();
-      return parseScreenerData(html, symbol);
-    } catch (e) {
-      continue;
-    }
+  for(const url of urls){
+    try{
+      const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36','Accept':'text/html','Referer':'https://www.screener.in/'}});
+      if(!r.ok)continue;
+      const html=await r.text();
+      return parseScreener(html,symbol);
+    }catch{continue;}
   }
   return null;
 }
 
-function parseScreenerData(html, symbol) {
-  const data = {
-    symbol,
-    mcap: null,
-    pe: null,
-    sector: null,
-    avg_daily_val: null,
-    price: null,
-    quarters: [] // [{label, revenue, pat}]
-  };
-
-  try {
-    // Market Cap
-    const mcapRe = /Market Cap\s*<\/td>\s*<td[^>]*>\s*₹?\s*([\d,]+(?:\.\d+)?)\s*<\/td>/i;
-    const mcapM = html.match(mcapRe);
-    if (mcapM) data.mcap = parseFloat(mcapM[1].replace(/,/g, ''));
-
-    // Current Price
-    const priceRe = /id="current-price"[^>]*>([\d,]+(?:\.\d+)?)/i;
-    const priceM = html.match(priceRe);
-    if (priceM) data.price = parseFloat(priceM[1].replace(/,/g, ''));
-
-    // PE
-    const peRe = /Stock P\/E\s*<\/td>\s*<td[^>]*>\s*([\d.]+)\s*<\/td>/i;
-    const peM = html.match(peRe);
-    if (peM) data.pe = parseFloat(peM[1]);
-
-    // Sector - from breadcrumb metadata
-    const sectorRe = /class="[^"]*breadcrumb[^"]*"[^>]*>.*?<a[^>]*>([^<]+)<\/a>\s*<\/li>\s*<li/is;
-    const sectorM = html.match(sectorRe);
-    if (sectorM) data.sector = sectorM[1].trim();
-
-    // Quarterly Results table - parse revenue (Sales) and PAT rows
-    // Screener renders these in a table with class "data-table"
-    // We look for the Quarterly Results section
-    const qResultsRe = /Quarterly Results[\s\S]*?<table[\s\S]*?<\/table>/i;
-    const qTableM = html.match(qResultsRe);
-
-    if (qTableM) {
-      const tableHtml = qTableM[0];
-      
-      // Extract column headers (quarter labels like "Mar 2025", "Dec 2024")
-      const headerRe = /<th[^>]*>((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4})<\/th>/gi;
-      const headers = [];
-      let hm;
-      while ((hm = headerRe.exec(tableHtml)) !== null) {
-        headers.push(hm[1]);
-      }
-
-      // Extract Sales row
-      const salesRe = /Sales[\s\S]*?<\/tr>/i;
-      const salesM = tableHtml.match(salesRe);
-      const salesVals = salesM ? extractRowValues(salesM[0]) : [];
-
-      // Extract PAT row (Net Profit)
-      const patRe = /Net Profit[\s\S]*?<\/tr>/i;
-      const patM = tableHtml.match(patRe);
-      const patVals = patM ? extractRowValues(patM[0]) : [];
-
-      // Build quarters array (most recent first)
-      for (let i = 0; i < Math.min(headers.length, 4); i++) {
-        data.quarters.push({
-          label: headers[i],
-          revenue: salesVals[i] || null,
-          pat: patVals[i] || null
-        });
+function parseScreener(html,symbol){
+  const out={symbol,mcap:null,pe:null,price:null,sector:'N/A',avg_val:null,quarters:[]};
+  try{
+    const prM=html.match(/id="current-price"[^>]*>\s*([\d,]+(?:\.\d+)?)/i)||html.match(/"current_price"\s*:\s*([\d.]+)/i);
+    if(prM)out.price=parseFloat(prM[1].replace(/,/g,''));
+    const mcM=html.match(/Market Cap[^<]*<\/[^>]+>\s*<[^>]+>\s*₹?\s*([\d,]+(?:\.\d+)?)/i);
+    if(mcM)out.mcap=parseFloat(mcM[1].replace(/,/g,''));
+    const peM=html.match(/Stock P\/E[^<]*<\/[^>]+>\s*<[^>]+>\s*([\d.]+)/i);
+    if(peM)out.pe=parseFloat(peM[1]);
+    const jldM=html.match(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/i);
+    if(jldM){try{const jd=JSON.parse(jldM[1]);out.sector=jd.industry||jd.sector||'N/A';}catch{}}
+    // quarters section
+    const qSecM=html.match(/id="quarters"[\s\S]*?<\/section>/i);
+    if(qSecM){
+      const tbl=qSecM[0];
+      const hRe=/<th[^>]*>((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s*['']?\d{2,4})<\/th>/gi;
+      const hdrs=[]; let hm;
+      while((hm=hRe.exec(tbl))!==null)hdrs.push(hm[1]);
+      const salesRow=tbl.match(/>\s*Sales\s*[\s\S]*?<\/tr>/i);
+      const patRow=tbl.match(/>\s*Net Profit\s*[\s\S]*?<\/tr>/i);
+      const sVals=salesRow?extractNums(salesRow[0]):[];
+      const pVals=patRow?extractNums(patRow[0]):[];
+      for(let i=0;i<Math.min(hdrs.length,4);i++){
+        out.quarters.push({label:hdrs[i],revenue:sVals[i]??null,pat:pVals[i]??null});
       }
     }
-
-  } catch (e) {
-    console.error('Screener parse error for', symbol, e.message);
-  }
-
-  return data;
+    const volM=html.match(/10\s*Day\s*Avg[^<]*<\/[^>]+>\s*<[^>]+>\s*([\d,]+)/i);
+    if(volM&&out.price){const v=parseFloat(volM[1].replace(/,/g,''));out.avg_val=Math.round(v*out.price/1e7*10)/10;}
+  }catch{}
+  return out;
 }
 
-function extractRowValues(rowHtml) {
-  const vals = [];
-  const tdRe = /<td[^>]*>([\d,\-\.]+)<\/td>/g;
-  let m;
-  while ((m = tdRe.exec(rowHtml)) !== null) {
-    const v = parseFloat(m[1].replace(/,/g, ''));
-    if (!isNaN(v)) vals.push(v);
-  }
+function extractNums(rowHtml){
+  const vals=[]; const re=/<td[^>]*>\s*([\d,\-]+(?:\.\d+)?)\s*<\/td>/g; let m;
+  while((m=re.exec(rowHtml))!==null){const v=parseFloat(m[1].replace(/,/g,''));if(!isNaN(v))vals.push(v);}
   return vals;
 }
 
-function calcQoQ(current, previous) {
-  if (!current || !previous || previous === 0) return null;
-  return ((current - previous) / Math.abs(previous)) * 100;
-}
-
-function isWithinDays(dateStr, days) {
-  try {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now - d;
-    return diffMs >= 0 && diffMs <= days * 24 * 60 * 60 * 1000;
-  } catch {
-    return false;
+module.exports=async function handler(req,res){
+  if(req.method==='OPTIONS')return res.status(200).end();
+  const revThresh=parseFloat(req.query.rev_thresh)||20;
+  const patThresh=parseFloat(req.query.pat_thresh)||20;
+  const mcapMin=parseFloat(req.query.mcap_min)||1000;
+  const mcapMax=parseFloat(req.query.mcap_max)||50000;
+  const priceMin=parseFloat(req.query.price_min)||20;
+  const peMax=parseFloat(req.query.pe_max)||35;
+  const valMin=parseFloat(req.query.val_min)||5;
+  if(cache&&Date.now()-cacheAt<TTL){
+    const f=applyF(cache,{revThresh,patThresh,mcapMin,mcapMax,priceMin,peMax,valMin});
+    return sendOk(res,{count:f.length,stocks:f,cached:true});
   }
-}
-
-module.exports = async function handler(req, res) {
-  if (req.method === 'OPTIONS') return res.status(200).end();
-
-  const revThresh = parseFloat(req.query.rev_thresh) || 20;
-  const patThresh = parseFloat(req.query.pat_thresh) || 20;
-  const mcapMin = parseFloat(req.query.mcap_min) || 1000;
-  const mcapMax = parseFloat(req.query.mcap_max) || 50000;
-  const priceMin = parseFloat(req.query.price_min) || 20;
-  const peMax = parseFloat(req.query.pe_max) || 35;
-  const valMin = parseFloat(req.query.val_min) || 5;
-
-  // Return cache if valid and same params would yield same raw data
-  if (cache && Date.now() - cacheAt < TTL) {
-    const filtered = applyFilters(cache, { revThresh, patThresh, mcapMin, mcapMax, priceMin, peMax, valMin });
-    return sendOk(res, { count: filtered.length, stocks: filtered, cached: true });
-  }
-
-  try {
-    // Step 1: Get recent results from Trendlyne
-    // Trendlyne has a public API endpoint for latest results
-    const trendlyneApiUrl = 'https://trendlyne.com/api/latest-quarterly-results/?format=json&page=1&limit=100';
-    
-    let resultsList = [];
-    try {
-      const tlRes = await fetch(trendlyneApiUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'application/json',
-          'Referer': 'https://trendlyne.com/equity/latest-quarterly-results/',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      });
-      
-      if (tlRes.ok) {
-        const tlData = await tlRes.json();
-        // Trendlyne returns array of result objects
-        // Each has: symbol, company_name, result_date, revenue, pat, revenue_prev, pat_prev etc.
-        resultsList = Array.isArray(tlData) ? tlData : (tlData.results || tlData.data || []);
+  const log=[];
+  try{
+    const [r1,r2,r3]=await Promise.all([srcNSE(log),srcScreenerList(log),srcMoneycontrol(log)]);
+    const symMap=new Map();
+    for(const s of [...r1,...r2,...r3]){if(!symMap.has(s.symbol))symMap.set(s.symbol,s);}
+    log.push('Total unique symbols: '+symMap.size);
+    if(!symMap.size){
+      return sendOk(res,{count:0,stocks:[],note:'No results in last 30 days from any source.',diag:log});
+    }
+    const BATCH=5; const syms=[...symMap.values()]; const enriched=[];
+    for(let i=0;i<Math.min(syms.length,80);i+=BATCH){
+      const batch=syms.slice(i,i+BATCH);
+      const results=await Promise.allSettled(batch.map(s=>getScreener(s.symbol)));
+      for(let j=0;j<batch.length;j++){
+        const raw=batch[j]; const r=results[j];
+        if(r.status!=='fulfilled'||!r.value){log.push(raw.symbol+': screener failed');continue;}
+        const s=r.value;
+        if(!s.quarters||s.quarters.length<2){log.push(raw.symbol+': quarters<2');continue;}
+        const rQoQ=qoq(s.quarters[0].revenue,s.quarters[1].revenue);
+        const pQoQ=qoq(s.quarters[0].pat,s.quarters[1].pat);
+        if(rQoQ===null||pQoQ===null){log.push(raw.symbol+': null qoq');continue;}
+        enriched.push({symbol:raw.symbol,name:raw.symbol,sector:s.sector||'N/A',result_date:raw.result_date,
+          revenue:s.quarters[0].revenue,rev_qoq:rQoQ,pat:s.quarters[0].pat,pat_qoq:pQoQ,
+          mcap:s.mcap,pe:s.pe,price:s.price,avg_val:s.avg_val});
+        log.push(raw.symbol+' OK rev='+rQoQ+'% pat='+pQoQ+'%');
       }
-    } catch (e) {
-      console.warn('Trendlyne API failed, trying NSE results:', e.message);
+      if(i+BATCH<syms.length)await sleep(250);
     }
-
-    // Fallback: NSE corporate results board
-    if (!resultsList.length) {
-      try {
-        const { fetchNSE } = require('./_utils');
-        const nseResults = await fetchNSE('/api/corporate-announcements?index=equities&subject=Financial+Results');
-        if (nseResults && Array.isArray(nseResults)) {
-          resultsList = nseResults.map(r => ({
-            symbol: r.symbol,
-            company_name: r.company || r.companyName,
-            result_date: r.bcastDt || r.an_dt,
-            source: 'nse'
-          }));
-        }
-      } catch (e2) {
-        console.warn('NSE results fallback also failed:', e2.message);
-      }
-    }
-
-    // Step 2: Filter to last 30 days
-    const recent = resultsList.filter(r => isWithinDays(r.result_date || r.date, 30));
-
-    if (!recent.length) {
-      return sendOk(res, { count: 0, stocks: [], note: 'No results found in last 30 days. Data sources may be temporarily unavailable.' });
-    }
-
-    // Step 3: For each recent result, get Screener data for QoQ and fundamentals
-    // Process in batches to avoid rate limiting
-    const BATCH = 5;
-    const enriched = [];
-
-    for (let i = 0; i < Math.min(recent.length, 60); i += BATCH) {
-      const batch = recent.slice(i, i + BATCH);
-      const results = await Promise.allSettled(
-        batch.map(r => fetchScreenerQuarterly(r.symbol))
-      );
-
-      for (let j = 0; j < batch.length; j++) {
-        const raw = batch[j];
-        const screenerResult = results[j];
-
-        if (screenerResult.status !== 'fulfilled' || !screenerResult.value) continue;
-        const s = screenerResult.value;
-
-        if (!s.quarters || s.quarters.length < 2) continue;
-
-        const q0 = s.quarters[0]; // most recent
-        const q1 = s.quarters[1]; // previous quarter
-
-        const revQoQ = calcQoQ(q0.revenue, q1.revenue);
-        const patQoQ = calcQoQ(q0.pat, q1.pat);
-
-        if (revQoQ === null || patQoQ === null) continue;
-
-        enriched.push({
-          symbol: raw.symbol,
-          name: raw.company_name || s.symbol,
-          sector: s.sector || 'N/A',
-          result_date: raw.result_date || raw.date,
-          revenue: q0.revenue,
-          rev_qoq: Math.round(revQoQ * 10) / 10,
-          pat: q0.pat,
-          pat_qoq: Math.round(patQoQ * 10) / 10,
-          mcap: s.mcap,
-          pe: s.pe,
-          price: s.price,
-          avg_val: s.avg_daily_val
-        });
-      }
-
-      if (i + BATCH < recent.length) await sleep(300); // rate limit courtesy
-    }
-
-    cache = enriched;
-    cacheAt = Date.now();
-
-    const filtered = applyFilters(enriched, { revThresh, patThresh, mcapMin, mcapMax, priceMin, peMax, valMin });
-    return sendOk(res, { count: filtered.length, stocks: filtered });
-
-  } catch (e) {
-    console.error('Earnings scan error:', e.message);
-    return sendError(res, 500, 'Earnings scan failed: ' + e.message);
+    cache=enriched; cacheAt=Date.now();
+    const filtered=applyF(enriched,{revThresh,patThresh,mcapMin,mcapMax,priceMin,peMax,valMin});
+    return sendOk(res,{count:filtered.length,stocks:filtered,diag:log});
+  }catch(e){
+    return sendError(res,500,'Earnings failed: '+e.message);
   }
 };
 
-function applyFilters(stocks, f) {
-  return stocks
-    .filter(s => {
-      if (s.rev_qoq < f.revThresh) return false;
-      if (s.pat_qoq < f.patThresh) return false;
-      if (s.mcap !== null && s.mcap < f.mcapMin) return false;
-      if (s.mcap !== null && s.mcap > f.mcapMax) return false;
-      if (s.price !== null && s.price < f.priceMin) return false;
-      if (s.pe !== null && s.pe > f.peMax) return false;
-      if (s.avg_val !== null && s.avg_val < f.valMin) return false;
-      return true;
-    })
-    .sort((a, b) => b.pat_qoq - a.pat_qoq);
+function applyF(stocks,f){
+  return stocks.filter(s=>{
+    if(s.rev_qoq<f.revThresh)return false;
+    if(s.pat_qoq<f.patThresh)return false;
+    if(s.mcap!=null&&s.mcap<f.mcapMin)return false;
+    if(s.mcap!=null&&s.mcap>f.mcapMax)return false;
+    if(s.price!=null&&s.price<f.priceMin)return false;
+    if(s.pe!=null&&s.pe>f.peMax)return false;
+    if(s.avg_val!=null&&s.avg_val<f.valMin)return false;
+    return true;
+  }).sort((a,b)=>b.pat_qoq-a.pat_qoq);
 }
