@@ -1,0 +1,12 @@
+{
+  "name": "eq-scanner",
+  "version": "1.0.0",
+  "description": "Indian Equity Market Scanner - I",
+  "private": true,
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "node-cache": "^5.1.2"
+  }
+}
