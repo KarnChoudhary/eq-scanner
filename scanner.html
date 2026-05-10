@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Chartitude Scanner — Himanshu Sharma Setups</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #050a10;
+    --bg2:      #080e18;
+    --bg3:      #0a1420;
+    --border:   #0e1e30;
+    --border2:  #1a2d42;
+    --text:     #c0d8f0;
+    --text2:    #6a8aaa;
+    --text3:    #3a5a7a;
+    --orange:   #ff6b35;
+    --green:    #00e676;
+    --blue:     #29b6f6;
+    --blue2:    #4fc3f7;
+    --yellow:   #ffb300;
+    --purple:   #ce93d8;
+    --teal:     #a5d6a7;
+    --red:      #ff5252;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; padding-bottom: 60px; }
+  textarea { background: #040810; color: #6ab4ff; border: 1px solid #0e2236; border-radius: 6px; padding: 10px 12px; font-family: 'Courier New', monospace; font-size: 12px; resize: vertical; outline: none; line-height: 1.9; width: 100%; }
+  button { cursor: pointer; font-family: 'Courier New', monospace; font-weight: 700; border: none; border-radius: 8px; transition: opacity 0.15s; }
+  button:hover { opacity: 0.85; }
+
+  /* HEADER */
+  #header {
+    background: linear-gradient(180deg, #0a1828 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px 12px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  #header-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+  #header h1 { font-family: 'Courier New', monospace; font-size: 17px; font-weight: 700; color: var(--orange); letter-spacing: 1.5px; }
+  #header p  { font-size: 9px; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+  #proxy-badge { font-family: monospace; font-size: 10px; padding: 4px 12px; border-radius: 8px; border: 1px solid; }
+
+  /* LAYOUT */
+  #main { max-width: 1200px; margin: 0 auto; padding: 16px 16px; }
+
+  /* SETUP CHIPS */
+  #chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .chip {
+    font-family: monospace; font-size: 11px; padding: 4px 14px;
+    border-radius: 20px; cursor: pointer; border: 1px solid; transition: all 0.15s;
+    background: var(--bg2);
+  }
+
+  /* INPUT GRID */
+  #input-grid { display: grid; grid-template-columns: 1fr 200px; gap: 14px; margin-bottom: 12px; }
+  .panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .panel-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+
+  #scan-btn {
+    width: 100%; padding: 13px 0; font-size: 13px; letter-spacing: 1px;
+    background: linear-gradient(135deg, #e65c00, var(--orange));
+    color: #fff; border-radius: 10px;
+  }
+  #scan-btn.stop { background: #140808; border: 1px solid var(--red); color: var(--red); }
+
+  #stats-panel { flex: 1; }
+  #stats-count { font-family: monospace; font-size: 28px; font-weight: 700; color: var(--orange); }
+  .stat-row { display: flex; justify-content: space-between; margin-top: 5px; font-size: 10px; }
+  .stat-row span:first-child { color: var(--text3); }
+
+  /* PROGRESS */
+  #progress-wrap { margin-bottom: 12px; }
+  #progress-label { display: flex; justify-content: space-between; font-size: 10px; font-family: monospace; color: var(--text3); margin-bottom: 4px; }
+  #progress-bar-bg { background: var(--bg2); border-radius: 3px; height: 3px; overflow: hidden; }
+  #progress-bar { height: 100%; background: linear-gradient(90deg, #e65c00, var(--orange)); border-radius: 3px; transition: width 0.3s; width: 0%; }
+
+  /* RESULTS */
+  #results-label { font-family: monospace; font-size: 10px; color: var(--text3); margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  #cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+
+  /* CARD */
+  .card {
+    background: #0a1018; border: 1px solid #1a2535;
+    border-radius: 12px; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 9px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .card:hover { border-color: #2a4060; box-shadow: 0 4px 24px rgba(0,0,0,.5); }
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .card-sym { font-family: monospace; font-weight: 700; font-size: 18px; color: #ddeeff; letter-spacing: 1.5px; }
+  .card-sub { font-family: monospace; font-size: 9px; color: var(--text3); letter-spacing: 2px; margin-top: 1px; }
+  .card-price { font-family: monospace; font-weight: 700; font-size: 15px; color: #ddeeff; text-align: right; }
+  .card-chg { font-family: monospace; font-size: 12px; font-weight: 700; text-align: right; }
+  .chart-wrap { border-radius: 6px; overflow: hidden; background: #050810; }
+  .setup-block {
+    border-radius: 7px; padding: 8px 10px;
+    border: 1px solid; border-left: 3px solid;
+  }
+  .setup-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+  .setup-name { font-family: monospace; font-weight: 700; font-size: 11px; }
+  .setup-badge { font-size: 10px; font-family: monospace; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+  .setup-signal { font-family: monospace; font-size: 11px; color: #b8cce0; }
+  .setup-detail { font-family: monospace; font-size: 10px; color: #567898; margin-top: 2px; }
+
+  /* EMPTY / INITIAL */
+  .state-msg { text-align: center; padding: 40px 20px; color: var(--text3); font-family: monospace; }
+  .state-msg .icon { font-size: 30px; margin-bottom: 10px; }
+  .state-msg .title { font-size: 13px; margin-bottom: 5px; }
+  .state-msg .sub { font-size: 11px; color: #1a3a5a; }
+
+  /* ERRORS details */
+  details summary { cursor: pointer; font-size: 9px; color: var(--red); margin-top: 8px; }
+  details div { font-size: 9px; color: #ff7272; margin-top: 4px; line-height: 1.8; word-break: break-all; }
+
+  @media (max-width: 640px) {
+    #input-grid { grid-template-columns: 1fr; }
+    #chips .chip { font-size: 10px; padding: 3px 10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div id="header">
+  <div id="header-inner">
+    <div>
+      <h1>📈 CHARTITUDE SCANNER</h1>
+      <p>Himanshu Sharma &middot; Dan Zanger &middot; NSE Daily</p>
+    </div>
+    <div id="proxy-badge">⏳ Checking data...</div>
+  </div>
+</div>
+
+<div id="main">
+
+  <!-- ── SETUP FILTER CHIPS ── -->
+  <div id="chips">
+    <div class="chip" data-id="ALL" style="color:var(--text2);border-color:var(--border2)">All Setups</div>
+    <div class="chip" data-id="TIGHT_RANGE"   style="color:var(--orange);border-color:var(--orange)33">🎯 Tight Range</div>
+    <div class="chip" data-id="BULL_FLAG"     style="color:var(--blue2);border-color:var(--blue2)33">🚩 Bull Flag</div>
+    <div class="chip" data-id="CUP_HANDLE"    style="color:var(--teal);border-color:var(--teal)33">☕ Cup &amp; Handle</div>
+    <div class="chip" data-id="HLINE_BO"      style="color:var(--green);border-color:var(--green)33">📊 Horizontal BO</div>
+    <div class="chip" data-id="PULLBACK_EMA"  style="color:var(--blue);border-color:var(--blue)33">↩️ Pullback</div>
+    <div class="chip" data-id="SHAKEOUT"      style="color:var(--yellow);border-color:var(--yellow)33">⚡ Shakeout</div>
+  </div>
+
+  <!-- ── INPUT + CONTROLS ── -->
+  <div id="input-grid">
+    <div class="panel">
+      <div class="panel-label">Watchlist — NSE Symbols (one per line)</div>
+      <textarea id="sym-input" rows="11" placeholder="RELIANCE&#10;INFY&#10;HDFCBANK&#10;...">RELIANCE
+INFY
+HDFCBANK
+TCS
+WIPRO
+BAJFINANCE
+TATAMOTORS
+SUNPHARMA
+LTIM
+AXISBANK
+ICICIBANK
+ADANIPORTS
+NTPC
+POWERGRID
+NESTLEIND
+TITAN
+ASIANPAINT
+HINDUNILVR
+KOTAKBANK
+SBIN</textarea>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button id="scan-btn">▶ SCAN</button>
+      <div class="panel" id="stats-panel" style="flex:1">
+        <div class="panel-label">Live Results</div>
+        <div id="stats-count">0</div>
+        <div style="font-size:9px;color:var(--text3);margin-bottom:8px">stocks matched</div>
+        <div id="setup-counts"></div>
+        <details id="error-details" style="display:none">
+          <summary id="error-summary"></summary>
+          <div id="error-list"></div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PROGRESS ── -->
+  <div id="progress-wrap" style="display:none">
+    <div id="progress-label">
+      <span id="progress-text">Scanning...</span>
+      <span id="progress-pct">0/0 · 0%</span>
+    </div>
+    <div id="progress-bar-bg"><div id="progress-bar"></div></div>
+  </div>
+
+  <!-- ── RESULTS ── -->
+  <div id="results-section" style="display:none">
+    <div id="results-label"></div>
+    <div id="cards-grid"></div>
+  </div>
+
+  <!-- ── STATES ── -->
+  <div id="empty-state" style="display:none" class="state-msg">
+    <div class="icon">🔍</div>
+    <div class="title">No setups found in this batch.</div>
+    <div class="sub">Filters are strict by design — the market may not have clean setups today.</div>
+  </div>
+  <div id="initial-state" class="state-msg">
+    <div class="icon">🎯</div>
+    <div class="title">Paste your watchlist above and hit SCAN</div>
+    <div class="sub" id="initial-sub">Checking data source...</div>
+  </div>
+
+  <div style="margin-top:24px;font-size:9px;color:#0e2030;font-family:monospace;text-align:center;border-top:1px solid #080e18;padding-top:10px">
+    Data: Yahoo Finance &middot; Himanshu Sharma (Chartitude) + Dan Zanger methodology &middot; Not financial advice
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════
+   INDICATORS
+════════════════════════════════════════════ */
+function calcSMA(arr, p) {
+  return arr.map((_, i) => i < p - 1 ? null : arr.slice(i - p + 1, i + 1).reduce((a, b) => a + (b ?? 0), 0) / p);
+}
+function calcEMA(arr, p) {
+  const k = 2 / (p + 1), out = Array(arr.length).fill(null);
+  let ema = null, cnt = 0;
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i] == null) continue;
+    if (ema === null) { cnt++; if (cnt < p) continue; let s=0,n=0; for(let j=i-p+1;j<=i;j++){if(arr[j]!=null){s+=arr[j];n++;}} ema=s/n; }
+    else ema = arr[i] * k + ema * (1 - k);
+    out[i] = ema;
+  }
+  return out;
+}
+const avgN = (arr, n) => { const v = arr.slice(-n).filter(x => x > 0); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : 0; };
+
+/* ════════════════════════════════════════════
+   SETUP DETECTION  (original strict filters)
+════════════════════════════════════════════ */
+function analyze(candles) {
+  const n = candles.length - 1;
+  const C = candles.map(c => c.close), H = candles.map(c => c.high);
+  const L = candles.map(c => c.low),  V = candles.map(c => c.volume);
+  const sma50 = calcSMA(C, 50), sma200 = calcSMA(C, Math.min(200, n - 1));
+  const ema21 = calcEMA(C, 21), ema10 = calcEMA(C, 10);
+  const cur = C[n], s50 = sma50[n], s200 = sma200[n];
+  const vol20 = avgN(V, 20);
+  const high52 = Math.max(...H.slice(-252));
+  const sma200Slope = s200 - (sma200[Math.max(0, n - 20)] || s200);
+  if (!s200 || cur < s200) return [];
+  const found = [];
+
+  // 1. TIGHT RANGE
+  for (const bd of [5, 7, 10, 15]) {
+    if (n < bd + 2) continue;
+    const bS = n - bd;
+    const bH = Math.max(...H.slice(bS, n + 1)), bL = Math.min(...L.slice(bS, n + 1));
+    const tight = (bH - bL) / bL;
+    if (tight > 0.10) continue;
+    const bVols = V.slice(bS, n);
+    const bAvgV = bVols.length ? bVols.reduce((a, b) => a + b, 0) / bVols.length : 0;
+    const vDry = bAvgV / (vol20 || 1);
+    if (vDry > 0.90) continue;
+    if (cur < high52 * 0.88) continue;
+    if (!s50 || cur < s50) continue;
+    if (cur < bH * 0.995) continue;
+    const bo = cur >= bH && C[n-1] < bH * 1.01;
+    const vR = V[n] / (vol20 || 1);
+    found.push({ id:"TIGHT_RANGE", label:"Tight Range / Flat Base", emoji:"🎯", color:"#ff6b35", bgColor:"rgba(255,107,53,0.08)",
+      signal: bo ? `BO above ₹${bH.toFixed(1)} | SL: ₹${bL.toFixed(1)} (${(tight*100).toFixed(1)}% risk)` : `Coiling near ₹${bH.toFixed(1)} | SL: ₹${bL.toFixed(1)} (${(tight*100).toFixed(1)}% risk)`,
+      strength: bo ? (vR >= 1.5 ? "Strong" : "Moderate") : "Setup",
+      detail: `${bd}d base | Vol ${(vDry*100).toFixed(0)}% of avg (drying) | ${((cur/high52)*100).toFixed(1)}% of 52W high`,
+      markers: [{ price:bH, label:"Base High", color:"#ff6b35", dash:false }, { price:bL, label:"SL", color:"#ff3d3d", dash:true }],
+      isSetup: !bo });
+    break;
+  }
+
+  // 2. BULL FLAG
+  outer1: for (const fl of [5, 7, 10, 15]) {
+    for (const pl of [5, 7, 10]) {
+      const pe = n - fl, ps = pe - pl;
+      if (ps < 5) continue;
+      const pb = Math.min(...L.slice(ps, pe+1)), pt = Math.max(...H.slice(ps, pe+1));
+      const polePct = (pt - pb) / pb;
+      if (polePct < 0.10) continue;
+      const fH = Math.max(...H.slice(pe, n+1)), fL = Math.min(...L.slice(pe, n+1));
+      if ((fH - fL) / fL > 0.12) continue;
+      if ((pt - fL) / ((pt - pb) || 1) > 0.50) continue;
+      if (H[pe] <= H[n-1]) continue;
+      const pV = avgN(V.slice(ps, pe+1), pl), fV = avgN(V.slice(pe, n), fl);
+      if (fV / (pV || 1) > 0.75) continue;
+      if (cur < fH * 0.97) continue;
+      const bo = cur >= fH, vR = V[n] / (vol20 || 1);
+      found.push({ id:"BULL_FLAG", label:"Bull Flag", emoji:"🚩", color:"#4fc3f7", bgColor:"rgba(79,195,247,0.08)",
+        signal: bo ? `Breaking flag top ₹${fH.toFixed(1)} | SL: ₹${fL.toFixed(1)}` : `Near flag top ₹${fH.toFixed(1)} | SL: ₹${fL.toFixed(1)}`,
+        strength: bo ? (vR >= 1.5 ? "Strong" : "Moderate") : "Setup",
+        detail: `${(polePct*100).toFixed(0)}% pole | ${fl}d flag | Vol contracting`,
+        markers: [{ price:fH, label:"Flag Top", color:"#4fc3f7", dash:false }, { price:fL, label:"SL", color:"#ff3d3d", dash:true }],
+        isSetup: !bo });
+      break outer1;
+    }
+  }
+
+  // 3. CUP & HANDLE
+  outer2: for (const cl of [30, 40, 50, 60]) {
+    for (const hl of [5, 8, 12]) {
+      const hs = n - hl, cs = hs - cl;
+      if (cs < 5) continue;
+      const cHL = Math.max(...H.slice(cs, cs+5)), cHR = Math.max(...H.slice(hs-5, hs+1));
+      const cBot = Math.min(...L.slice(cs+5, hs));
+      if (!cHL || !cBot) continue;
+      const depth = (cHL - cBot) / cHL;
+      if (depth < 0.10 || depth > 0.38) continue;
+      if (Math.abs(cHR - cHL) / cHL > 0.06) continue;
+      const hLow = Math.min(...L.slice(hs, n+1));
+      if (hLow < cBot + (cHL - cBot) * 0.50) continue;
+      if ((cHR - hLow) / (cHR || 1) > 0.15) continue;
+      if (avgN(V.slice(hs, n), hl) / (vol20 || 1) > 0.85) continue;
+      const bk = Math.max(...H.slice(hs, n+1));
+      if (cur < bk * 0.96) continue;
+      const bo = cur >= bk, vR = V[n] / (vol20 || 1);
+      found.push({ id:"CUP_HANDLE", label:"Cup & Handle", emoji:"☕", color:"#a5d6a7", bgColor:"rgba(165,214,167,0.08)",
+        signal: bo ? `Breaking cup rim ₹${bk.toFixed(1)} | SL: ₹${hLow.toFixed(1)}` : `Near cup rim ₹${bk.toFixed(1)} | SL: ₹${hLow.toFixed(1)}`,
+        strength: bo ? (vR >= 1.5 ? "Strong" : "Moderate") : "Setup",
+        detail: `${cl}d cup, ${(depth*100).toFixed(0)}% deep | ${hl}d handle`,
+        markers: [{ price:bk, label:"Cup Rim", color:"#a5d6a7", dash:false }, { price:hLow, label:"SL", color:"#ff3d3d", dash:true }, { price:cBot, label:"Cup Bot", color:"#607d8b", dash:true }],
+        isSetup: cur < bk });
+      break outer2;
+    }
+  }
+
+  // 4. HORIZONTAL BO
+  if (s50 && cur >= s50 && sma200Slope >= 0 && cur >= high52 * 0.80) {
+    const lk = Math.min(150, n-2), swings = [];
+    for (let i = n - lk; i <= n - 2; i++) { if (i < 1) continue; if (H[i] > H[i-1] && H[i] > H[i+1]) swings.push({ p:H[i], i }); }
+    const clusters = [];
+    for (const sh of swings) { let added = false; for (const cl of clusters) { const mid = cl.reduce((a,b)=>a+b.p,0)/cl.length; if (Math.abs(sh.p-mid)/mid < 0.025) { cl.push(sh); added=true; break; } } if (!added) clusters.push([sh]); }
+    for (const cl of clusters) {
+      if (cl.length < 3) continue;
+      const res = cl.reduce((a,b)=>a+b.p,0)/cl.length;
+      if (cur > res && cur < res*1.05 && C[n-1] <= res*1.015) {
+        const vR = V[n] / (vol20 || 1);
+        found.push({ id:"HLINE_BO", label:"Horizontal BO", emoji:"📊", color:"#00e676", bgColor:"rgba(0,230,118,0.08)",
+          signal:`Broke ₹${res.toFixed(1)} resistance (${cl.length} touches)`,
+          strength: vR >= 1.5 ? "Strong" : vR >= 0.9 ? "Moderate" : "Weak",
+          detail:`Vol ${vR.toFixed(1)}× avg | Above 50 & 200 SMA`,
+          markers:[{ price:res, label:"Resistance", color:"#00e676", dash:false }], isSetup:false });
+        break;
+      }
+    }
+  }
+
+  // 5. PULLBACK TO EMA
+  if (ema21[n]) {
+    let hadMove = false;
+    for (let i = Math.max(0, n-40); i < n-3; i++) { if (ema21[i] && C[i] > ema21[i]*1.10) { hadMove = true; break; } }
+    if (hadMove) {
+      let lvl = null, lvlN = "";
+      for (let i = n-6; i <= n-1; i++) {
+        if (i < 0) continue;
+        if (ema21[i] && Math.abs(L[i]-ema21[i])/ema21[i] < 0.018) { lvl=ema21[i]; lvlN="21 EMA"; break; }
+        if (ema10[i] && Math.abs(L[i]-ema10[i])/ema10[i] < 0.018) { lvl=ema10[i]; lvlN="10 EMA"; break; }
+        if (s50 && Math.abs(L[i]-s50)/s50 < 0.018) { lvl=s50; lvlN="50 SMA"; break; }
+      }
+      if (lvl && cur > ema21[n] && C[n] > C[n-1]) {
+        const dry = V.slice(n-5, n).filter(v => v < (vol20||1)*0.85).length;
+        found.push({ id:"PULLBACK_EMA", label:"Pullback Buy", emoji:"↩️", color:"#29b6f6", bgColor:"rgba(41,182,246,0.08)",
+          signal:`Bounced off ${lvlN} at ₹${lvl.toFixed(1)}`,
+          strength: dry >= 3 ? "Strong" : "Moderate",
+          detail:`Vol dried ${dry}/5 days | Now bouncing`,
+          markers:[{ price:lvl, label:lvlN, color:"#29b6f6", dash:true }], isSetup:false });
+      }
+    }
+  }
+
+  // 6. SHAKEOUT
+  {
+    const bs = Math.max(10, n-80), be = Math.max(bs+14, n-5);
+    const bL2 = L.slice(bs, be), bH2 = H.slice(bs, be);
+    if (bL2.length >= 15) {
+      const sup = bL2.reduce((a,b)=>a+b,0)/bL2.length;
+      if ((Math.max(...bH2) - Math.min(...bL2)) / sup <= 0.28) {
+        let sk = -1;
+        for (let i = n-10; i <= n-2; i++) { if (i<0) continue; if (L[i] < sup*0.985) { for (let j=i+1; j<=Math.min(i+5,n); j++) { if (C[j]>sup){sk=i;break;} } } if(sk>=0)break; }
+        if (sk >= 0 && cur >= sup) {
+          const vr = V[sk] / (vol20||1);
+          found.push({ id:"SHAKEOUT", label:"Shakeout / U&R", emoji:"⚡", color:"#ffb300", bgColor:"rgba(255,179,0,0.08)",
+            signal:`False break of ₹${sup.toFixed(1)}, recovered in ${n-sk}d`,
+            strength: vr >= 1.3 ? "Strong" : "Moderate",
+            detail:`Shakeout vol ${vr.toFixed(1)}× avg | Back above base`,
+            markers:[{ price:sup, label:"Support", color:"#ffb300", dash:true }], isSetup:false });
+        }
+      }
+    }
+  }
+
+  return found;
+}
+
+/* ════════════════════════════════════════════
+   SPARKLINE SVG
+════════════════════════════════════════════ */
+function drawSpark(candles, setups, wrap) {
+  const W = wrap.clientWidth || 240, H_ = 80;
+  const C = candles.map(c => c.close);
+  const all = [...C, ...setups.flatMap(s => (s.markers||[]).map(m => m.price))];
+  const mn = Math.min(...all)*0.995, mx = Math.max(...all)*1.005, rng = mx-mn||1;
+  const x = i => (i/(C.length-1))*W, y = p => H_-((p-mn)/rng)*H_;
+  const pts = C.map((p,i) => `${x(i).toFixed(1)},${y(p).toFixed(1)}`).join(" ");
+  const up = C[C.length-1] >= C[0], col = up ? "#00e676" : "#ff5252";
+  const gid = "sg" + Math.random().toString(36).slice(2,7);
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("width", W); svg.setAttribute("height", H_);
+  svg.innerHTML = `
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${col}" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="${col}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <polygon points="0,${H_} ${pts} ${W},${H_}" fill="url(#${gid})"/>
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linejoin="round"/>
+    ${setups.flatMap(s=>(s.markers||[]).map(m=>{
+      const py=y(m.price); if(py<0||py>H_) return '';
+      return `<line x1="0" y1="${py.toFixed(1)}" x2="${W}" y2="${py.toFixed(1)}" stroke="${m.color}" stroke-width="1.2" stroke-dasharray="${m.dash?'5,3':'none'}" opacity=".95"/>
+              <text x="3" y="${(py-3).toFixed(1)}" font-size="7" fill="${m.color}" font-family="monospace">${m.label}</text>`;
+    })).join('')}
+    <circle cx="${x(C.length-1).toFixed(1)}" cy="${y(C[C.length-1]).toFixed(1)}" r="3" fill="${col}"/>
+  `;
+  wrap.appendChild(svg);
+}
+
+/* ════════════════════════════════════════════
+   CARD BUILDER
+════════════════════════════════════════════ */
+function buildCard(r) {
+  const isUp = parseFloat(r.change) >= 0;
+  const card = document.createElement("div");
+  card.className = "card";
+  card.dataset.setups = r.setups.map(s=>s.id).join(",");
+
+  card.innerHTML = `
+    <div class="card-header">
+      <div>
+        <div class="card-sym">${r.symbol}</div>
+        <div class="card-sub">NSE · DAILY</div>
+      </div>
+      <div>
+        <div class="card-price">₹${r.price.toFixed(2)}</div>
+        <div class="card-chg" style="color:${isUp?'#00e676':'#ff5252'}">${isUp?'▲':'▼'} ${Math.abs(r.change)}%</div>
+      </div>
+    </div>
+    <div class="chart-wrap" style="min-height:80px"></div>
+    ${r.setups.map(s => {
+      const bc = s.isSetup?"rgba(160,196,255,0.12)":s.strength==="Strong"?"rgba(0,230,118,0.12)":"rgba(255,179,0,0.12)";
+      const tc = s.isSetup?"#a0c4ff":s.strength==="Strong"?"#00e676":"#ffb300";
+      const badge = s.isSetup?"⏳ WATCHING":s.strength==="Strong"?"🔥 STRONG":"✅ "+s.strength;
+      return `<div class="setup-block" style="background:${s.bgColor};border-color:${s.color}22;border-left-color:${s.color}">
+        <div class="setup-header">
+          <span class="setup-name" style="color:${s.color}">${s.emoji} ${s.label}</span>
+          <span class="setup-badge" style="color:${tc};background:${bc}">${badge}</span>
+        </div>
+        <div class="setup-signal">${s.signal}</div>
+        <div class="setup-detail">${s.detail}</div>
+      </div>`;
+    }).join("")}
+  `;
+
+  // draw sparkline after DOM append
+  requestAnimationFrame(() => {
+    const wrap = card.querySelector(".chart-wrap");
+    drawSpark(r.candles, r.setups, wrap);
+  });
+
+  return card;
+}
+
+/* ════════════════════════════════════════════
+   SCANNER STATE
+════════════════════════════════════════════ */
+const SETUP_META = {
+  TIGHT_RANGE:   { emoji:"🎯", label:"Tight Range",   color:"#ff6b35" },
+  BULL_FLAG:     { emoji:"🚩", label:"Bull Flag",     color:"#4fc3f7" },
+  CUP_HANDLE:    { emoji:"☕", label:"Cup & Handle",  color:"#a5d6a7" },
+  HLINE_BO:      { emoji:"📊", label:"Horizontal BO", color:"#00e676" },
+  PULLBACK_EMA:  { emoji:"↩️",  label:"Pullback",      color:"#29b6f6" },
+  SHAKEOUT:      { emoji:"⚡", label:"Shakeout",      color:"#ffb300" },
+};
+
+let scanning = false, abortFlag = false;
+let allResults = [], errors = [], counts = {};
+let activeFilter = "ALL";
+
+// DOM refs
+const scanBtn      = document.getElementById("scan-btn");
+const symInput     = document.getElementById("sym-input");
+const progressWrap = document.getElementById("progress-wrap");
+const progressBar  = document.getElementById("progress-bar");
+const progressText = document.getElementById("progress-text");
+const progressPct  = document.getElementById("progress-pct");
+const resultsSection = document.getElementById("results-section");
+const resultsLabel   = document.getElementById("results-label");
+const cardsGrid      = document.getElementById("cards-grid");
+const emptyState     = document.getElementById("empty-state");
+const initialState   = document.getElementById("initial-state");
+const statsCount     = document.getElementById("stats-count");
+const setupCounts    = document.getElementById("setup-counts");
+const errorDetails   = document.getElementById("error-details");
+const errorSummary   = document.getElementById("error-summary");
+const errorList      = document.getElementById("error-list");
+const proxyBadge     = document.getElementById("proxy-badge");
+const initialSub     = document.getElementById("initial-sub");
+
+/* ── PROXY CHECK ── */
+async function checkProxy() {
+  try {
+    const res = await fetch("/api/scan?symbol=RELIANCE");
+    if (res.ok) {
+      proxyBadge.textContent = "✅ Data source ready";
+      proxyBadge.style.cssText = "color:#00e676;background:rgba(0,230,118,0.08);border-color:#00e67633";
+      initialSub.textContent = "Data source connected — ready to scan";
+    } else throw new Error(res.status);
+  } catch {
+    proxyBadge.textContent = "❌ /api/scan unreachable";
+    proxyBadge.style.cssText = "color:#ff5252;background:rgba(255,82,82,0.08);border-color:#ff525233";
+    initialSub.textContent = "⚠ API not responding — check Vercel deployment";
+  }
+}
+checkProxy();
+
+/* ── FILTER CHIPS ── */
+document.querySelectorAll(".chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    activeFilter = chip.dataset.id;
+    document.querySelectorAll(".chip").forEach(c => c.style.fontWeight = "400");
+    chip.style.fontWeight = "700";
+    renderResults();
+  });
+});
+
+/* ── SCAN BUTTON ── */
+scanBtn.addEventListener("click", () => {
+  if (scanning) { abortFlag = true; return; }
+  startScan();
+});
+
+async function startScan() {
+  const syms = [...new Set(
+    symInput.value.split(/[\n,\s]+/).map(s => s.trim().toUpperCase()).filter(s => /^[A-Z0-9&\-]{1,20}$/.test(s))
+  )];
+  if (!syms.length) return;
+
+  scanning = true; abortFlag = false;
+  allResults = []; errors = []; counts = {};
+  scanBtn.textContent = "⏹ STOP"; scanBtn.className = "stop";
+  symInput.disabled = true;
+  initialState.style.display = "none";
+  emptyState.style.display = "none";
+  resultsSection.style.display = "none";
+  progressWrap.style.display = "block";
+  cardsGrid.innerHTML = "";
+  updateStats();
+
+  for (let i = 0; i < syms.length; i++) {
+    if (abortFlag) break;
+    const sym = syms[i];
+    updateProgress(i, syms.length, sym);
+
+    try {
+      const res = await fetch(`/api/scan?symbol=${sym}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { candles } = await res.json();
+      const setups = analyze(candles);
+      if (setups.length) {
+        const last = candles[candles.length-1], prev = candles[candles.length-2];
+        const r = {
+          symbol: sym, setups,
+          candles: candles.slice(-60),
+          price: last.close,
+          change: (((last.close - prev.close)/prev.close)*100).toFixed(2),
+        };
+        allResults.push(r);
+        setups.forEach(s => { counts[s.id] = (counts[s.id]||0)+1; });
+        addCard(r);
+        updateStats();
+      }
+    } catch(e) { errors.push(sym); updateErrors(); }
+
+    await sleep(300);
+  }
+
+  updateProgress(syms.length, syms.length, "Done");
+  scanning = false;
+  scanBtn.textContent = "▶ SCAN"; scanBtn.className = "";
+  symInput.disabled = false;
+
+  if (allResults.length === 0) {
+    progressWrap.style.display = "none";
+    emptyState.style.display = "block";
+  }
+}
+
+/* ── CARD + FILTER ── */
+function addCard(r) {
+  resultsSection.style.display = "block";
+  const card = buildCard(r);
+  card.style.display = shouldShow(r) ? "" : "none";
+  cardsGrid.appendChild(card);
+  updateResultsLabel();
+}
+
+function shouldShow(r) {
+  return activeFilter === "ALL" || r.setups.some(s => s.id === activeFilter);
+}
+
+function renderResults() {
+  document.querySelectorAll(".card").forEach((card, i) => {
+    card.style.display = shouldShow(allResults[i]) ? "" : "none";
+  });
+  updateResultsLabel();
+}
+
+function updateResultsLabel() {
+  const visible = activeFilter === "ALL" ? allResults.length : allResults.filter(r=>shouldShow(r)).length;
+  resultsLabel.textContent = `${visible} result${visible!==1?"s":""} ${activeFilter!=="ALL"?"· "+SETUP_META[activeFilter]?.label+" filter":""}`;
+}
+
+/* ── STATS ── */
+function updateStats() {
+  statsCount.textContent = allResults.length;
+  setupCounts.innerHTML = Object.entries(counts).map(([id,c]) => {
+    const m = SETUP_META[id];
+    return `<div class="stat-row"><span>${m?.emoji} ${m?.label}</span><span style="color:${m?.color};font-family:monospace;font-weight:700">${c}</span></div>`;
+  }).join("");
+}
+
+function updateErrors() {
+  if (!errors.length) return;
+  errorDetails.style.display = "block";
+  errorSummary.textContent = `⚠ ${errors.length} failed`;
+  errorList.textContent = errors.join(", ");
+}
+
+/* ── PROGRESS ── */
+function updateProgress(done, total, cur) {
+  const pct = Math.round((done/total)*100);
+  progressBar.style.width = pct + "%";
+  progressText.textContent = done === total ? "✓ Complete" : `Scanning ${cur}...`;
+  progressPct.textContent = `${done}/${total} · ${pct}%`;
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+</script>
+</body>
+</html>
