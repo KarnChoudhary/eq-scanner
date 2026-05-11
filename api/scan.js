@@ -1,66 +1,48 @@
-// api/scan.js  — Vercel serverless function (CommonJS)
+// api/scan.js — Vercel serverless function (CommonJS)
+// Proxies through your existing Supabase yahoo-proxy edge function
 // GET /api/scan?symbol=RELIANCE
 // Returns: { symbol, candles: [{date,open,high,low,close,volume}, ...] }
+
+const SUPABASE_URL  = "https://hehxbolrheumzpeharlm.supabase.co/functions/v1/yahoo-proxy";
+const SUPABASE_ANON = process.env.SUPABASE_ANON_KEY || "";
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  const symbol = ((req.query && req.query.symbol) || "").toUpperCase().trim();
-  if (!symbol) return res.status(400).json({ error: "symbol query param required" });
+  const raw = ((req.query && req.query.symbol) || "").toUpperCase().trim();
+  if (!raw) return res.status(400).json({ error: "symbol query param required" });
+
+  // Always append .NS for NSE stocks
+  const symbol = raw.endsWith(".NS") ? raw : `${raw}.NS`;
 
   try {
-    // Step 1: Get session cookie
-    let cookie = "";
-    try {
-      const cookieRes = await fetch("https://finance.yahoo.com/", {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "text/html,application/xhtml+xml",
-          "Accept-Language": "en-US,en;q=0.9",
-        },
-        redirect: "follow",
-      });
-      const raw = cookieRes.headers.get("set-cookie") || "";
-      cookie = raw.split(";")[0];
-    } catch (_) {}
+    const proxyUrl = `${SUPABASE_URL}?symbol=${encodeURIComponent(symbol)}&action=quote&interval=1d&range=1y`;
 
-    // Step 2: Get crumb
-    let crumb = "";
-    try {
-      const crumbRes = await fetch("https://query1.finance.yahoo.com/v1/test/getcrumb", {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Cookie": cookie,
-        },
-      });
-      if (crumbRes.ok) crumb = await crumbRes.text();
-    } catch (_) {}
-
-    // Step 3: Fetch chart — try query1 then query2 as fallback
-    const buildUrl = (host) => {
-      const base = `https://${host}.finance.yahoo.com/v8/chart/${symbol}.NS?interval=1d&range=1y`;
-      return crumb ? `${base}&crumb=${encodeURIComponent(crumb)}` : base;
-    };
     const headers = {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "Accept": "application/json",
-      "Cookie": cookie,
+      "Content-Type": "application/json",
     };
-
-    let data;
-    for (const host of ["query1", "query2"]) {
-      const r = await fetch(buildUrl(host), { headers });
-      if (r.ok) { data = await r.json(); break; }
+    if (SUPABASE_ANON) {
+      headers["Authorization"] = `Bearer ${SUPABASE_ANON}`;
     }
 
-    if (!data) return res.status(502).json({ error: `Yahoo Finance unavailable for ${symbol}` });
+    const proxyRes = await fetch(proxyUrl, { headers });
 
+    if (!proxyRes.ok) {
+      const text = await proxyRes.text();
+      return res.status(proxyRes.status).json({
+        error: `Supabase proxy returned ${proxyRes.status}`,
+        detail: text.slice(0, 200),
+      });
+    }
+
+    const data = await proxyRes.json();
     const result = data?.chart?.result?.[0];
-    if (!result) return res.status(404).json({ error: `No data for ${symbol}.NS` });
+    if (!result) return res.status(404).json({ error: `No chart data for ${symbol}` });
 
     const { timestamp, indicators: { quote: [q] } } = result;
+
     const candles = [];
     for (let i = 0; i < timestamp.length; i++) {
       if (q.close[i] == null || q.high[i] == null || q.low[i] == null) continue;
@@ -75,9 +57,11 @@ module.exports = async function handler(req, res) {
     }
 
     if (candles.length < 60)
-      return res.status(422).json({ error: `Only ${candles.length} candles — need 60+` });
+      return res.status(422).json({
+        error: `Only ${candles.length} candles returned for ${symbol} — need 60+. The proxy may not support range=1y.`,
+      });
 
-    return res.status(200).json({ symbol, candles });
+    return res.status(200).json({ symbol: raw, candles });
 
   } catch (err) {
     return res.status(500).json({ error: err.message || "Internal error" });
