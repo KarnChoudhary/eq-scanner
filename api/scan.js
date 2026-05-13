@@ -1,34 +1,27 @@
-// api/scan.js — Vercel serverless function (CommonJS, Node.js)
-// Calls Yahoo Finance directly — no Supabase proxy needed
+// api/scan.js — Vercel serverless function (CommonJS)
+// Uses stooq.com — free NSE daily OHLCV, no auth, no cookies
 // GET /api/scan?symbol=RELIANCE
+// Returns: { symbol, candles: [{date,open,high,low,close,volume},...] }
 
 const https = require("https");
 
-function httpsGet(url, headers) {
+function httpsGet(url) {
   return new Promise((resolve, reject) => {
-    const opts = new URL(url);
+    const u = new URL(url);
     const req = https.request(
       {
-        hostname: opts.hostname,
-        path: opts.pathname + opts.search,
+        hostname: u.hostname,
+        path: u.pathname + u.search,
         method: "GET",
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "application/json, text/html, */*",
-          "Accept-Language": "en-US,en;q=0.9",
-          ...headers,
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept": "text/csv,text/plain,*/*",
         },
       },
       (res) => {
         const chunks = [];
         res.on("data", (c) => chunks.push(c));
-        res.on("end", () =>
-          resolve({
-            status: res.statusCode,
-            headers: res.headers,
-            body: Buffer.concat(chunks).toString("utf8"),
-          })
-        );
+        res.on("end", () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString("utf8") }));
       }
     );
     req.on("error", reject);
@@ -37,78 +30,60 @@ function httpsGet(url, headers) {
   });
 }
 
+// Parse stooq CSV → candle array
+// CSV format: Date,Open,High,Low,Close,Volume
+function parseCSV(csv) {
+  const lines = csv.trim().split("\n").filter(Boolean);
+  if (lines.length < 2) return [];
+  // skip header line
+  const candles = [];
+  for (let i = 1; i < lines.length; i++) {
+    const [date, open, high, low, close, volume] = lines[i].split(",");
+    if (!date || !close || close === "N/D") continue;
+    candles.push({
+      date,
+      open:   parseFloat(open),
+      high:   parseFloat(high),
+      low:    parseFloat(low),
+      close:  parseFloat(close),
+      volume: parseInt(volume) || 0,
+    });
+  }
+  // stooq returns newest first — reverse to chronological
+  return candles.reverse();
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  const raw = ((req.query && req.query.symbol) || "").toUpperCase().trim();
-  if (!raw) return res.status(400).json({ error: "symbol query param required" });
-  const symbol = raw.endsWith(".NS") ? raw : `${raw}.NS`;
+  const raw = ((req.query && req.query.symbol) || "").trim().toUpperCase();
+  if (!raw) return res.status(400).json({ error: "symbol param required" });
+
+  // stooq expects lowercase .ns suffix  e.g. reliance.ns
+  const stooqSym = raw.toLowerCase().replace(/\.ns$/, "") + ".ns";
+  const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym)}&i=d`;
 
   try {
-    // ── Step 1: Get cookie ──
-    let cookie = "";
-    try {
-      const r = await httpsGet("https://finance.yahoo.com/", {});
-      const setCookie = r.headers["set-cookie"];
-      if (setCookie) {
-        const arr = Array.isArray(setCookie) ? setCookie : [setCookie];
-        cookie = arr.map(c => c.split(";")[0]).join("; ");
-      }
-    } catch (_) {}
+    const { status, body } = await httpsGet(url);
 
-    // ── Step 2: Get crumb ──
-    let crumb = "";
-    try {
-      const r = await httpsGet(
-        "https://query1.finance.yahoo.com/v1/test/getcrumb",
-        { Cookie: cookie }
-      );
-      if (r.status === 200) crumb = r.body.trim();
-    } catch (_) {}
-
-    // ── Step 3: Fetch chart data ──
-    const baseUrl = `https://query1.finance.yahoo.com/v8/chart/${encodeURIComponent(symbol)}?interval=1d&range=1y`;
-    const chartUrl = crumb ? `${baseUrl}&crumb=${encodeURIComponent(crumb)}` : baseUrl;
-
-    let chartData = null;
-    for (const host of ["query1", "query2"]) {
-      try {
-        const r = await httpsGet(chartUrl.replace("query1", host), { Cookie: cookie });
-        if (r.status === 200) {
-          chartData = JSON.parse(r.body);
-          break;
-        }
-      } catch (_) {}
+    if (status !== 200) {
+      return res.status(502).json({ error: `stooq returned HTTP ${status} for ${stooqSym}` });
     }
 
-    if (!chartData) {
-      return res.status(502).json({ error: `Could not fetch data for ${symbol} from Yahoo Finance` });
-    }
-
-    const result = chartData?.chart?.result?.[0];
-    if (!result) {
-      return res.status(404).json({ error: `No chart data found for ${symbol}` });
-    }
-
-    const { timestamp, indicators: { quote: [q] } } = result;
-    const candles = [];
-    for (let i = 0; i < timestamp.length; i++) {
-      if (q.close[i] == null || q.high[i] == null || q.low[i] == null) continue;
-      candles.push({
-        date:   new Date(timestamp[i] * 1000).toISOString().slice(0, 10),
-        open:   Math.round(q.open[i]  * 100) / 100,
-        high:   Math.round(q.high[i]  * 100) / 100,
-        low:    Math.round(q.low[i]   * 100) / 100,
-        close:  Math.round(q.close[i] * 100) / 100,
-        volume: q.volume[i] ?? 0,
+    // stooq returns "No data" page as HTML when symbol not found
+    if (body.trim().startsWith("<") || body.includes("No data")) {
+      return res.status(404).json({
+        error: `Symbol "${raw}" not found on stooq. Try the exact NSE ticker (e.g. HDFCBANK, not HDFC BANK).`,
       });
     }
 
+    const candles = parseCSV(body);
+
     if (candles.length < 60) {
       return res.status(422).json({
-        error: `Only ${candles.length} candles for ${symbol} — need 60+`,
+        error: `Only ${candles.length} candles for ${raw} — need 60+`,
       });
     }
 
