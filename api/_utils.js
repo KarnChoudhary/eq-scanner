@@ -1,12 +1,13 @@
-// _utils.js v6
-// KEY FIXES:
-// 1. Screener MCap: "19,42,189 Cr" — Indian number format parsing
-// 2. Screener quarters: section regex cuts off too early — use indexOf approach
-// 3. All patterns tested against known real HTML structure
+// _utils.js v7
+// ROOT CAUSE FIXES (confirmed by testing):
+// 1. MCap: Screener wraps value in nested <span> inside .number span
+//    Fix: find 'Market Cap' then grab first >NNNN< pattern after it
+// 2. Quarters: Screener uses single quotes id='quarters' not double quotes
+//    Fix: search for BOTH quote styles with findSectionId()
 
 const SCREENER_HDR = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept': 'text/html,application/xhtml+xml,*/*',
   'Accept-Language': 'en-US,en;q=0.9',
   'Referer': 'https://www.screener.in/',
   'Cache-Control': 'no-cache'
@@ -64,31 +65,34 @@ async function fetchScreenerHTML(symbol) {
   return null;
 }
 
-// ── parseIndianNumber ─────────────────────────────────────────────────
-// Converts "19,42,189" → 1942189  OR  "1,23,456.78" → 123456.78
+// Find section by id — handles BOTH single and double quote attribute values
+function findSectionId(html, id) {
+  let idx = html.indexOf('id="' + id + '"');
+  if (idx === -1) idx = html.indexOf("id='" + id + "'");
+  return idx;
+}
+
+// Parse Indian comma-formatted number: "19,42,189" → 1942189
 function parseIndian(s) {
   if (!s) return null;
   const v = parseFloat(String(s).replace(/,/g, ''));
   return isNaN(v) ? null : v;
 }
 
-// ── SCREENER PARSER v6 ────────────────────────────────────────────────
-// Uses indexOf-based section extraction (avoids regex catastrophic backtracking)
-// and tests multiple label patterns for each field
+// ── SCREENER PARSER v7 ────────────────────────────────────────────────
 function parseScreener(html) {
   const out = { price: null, mcap: null, pe: null, sector: 'N/A', avg_val: null, quarters: [] };
   if (!html) return out;
 
   try {
     // ── PRICE ──────────────────────────────────────────────────────────
-    // Strategy: find the ratio/top section, then extract numbers with sanity check
-    // RELIANCE price ~1435, MCap ~19,42,189 Cr — price is < 100000, MCap > 100000
+    // Screener puts current price in top section
+    // Pattern: <span id="current-price">1388</span> OR ratio list value
     const pricePats = [
-      /id="current-price"[^>]*>\s*([\d,]+\.?\d*)/i,
-      /Current Price[^<]{0,5}<\/[^>]+>[^<]{0,30}<[^>]+>\s*₹?\s*([\d,]+\.?\d*)/i,
+      /id=["']current-price["'][^>]*>\s*([\d,]+\.?\d*)/i,
+      /Current Price[^<]{0,10}<\/[^>]+>[^<]{0,100}<[^>]+>\s*₹?\s*([\d,]+\.?\d*)/i,
       /"currentPrice"\s*:\s*([\d.]+)/i,
       /"lastPrice"\s*:\s*([\d.]+)/i,
-      /data-last-price="([\d.]+)"/i,
     ];
     for (const p of pricePats) {
       const m = html.match(p);
@@ -97,9 +101,9 @@ function parseScreener(html) {
         if (v && v >= 0.5 && v <= 200000) { out.price = Math.round(v * 100) / 100; break; }
       }
     }
-    // Fallback: first .number value in reasonable price range
+    // Fallback: first .number value in price range, skipping large MCap values
     if (!out.price) {
-      const re = /class="[^"]*\bnumber\b[^"]*"[^>]*>\s*([\d,]+\.?\d*)\s*</g;
+      const re = /class=["'][^"']*\bnumber\b[^"']*["'][^>]*>\s*([\d,]+\.?\d*)\s*</g;
       let m;
       while ((m = re.exec(html)) !== null) {
         const v = parseIndian(m[1]);
@@ -108,30 +112,30 @@ function parseScreener(html) {
     }
 
     // ── MCAP ───────────────────────────────────────────────────────────
-    // Screener shows MCap as "₹19,42,189 Cr" in the ratios list
-    // The key insight: after "Market Cap" label, there's a number in Indian format
-    // followed by " Cr" — the number itself can be very large (lakh crores)
-    const mcapPats = [
-      // Standard ratio block pattern
-      /Market\s*Cap[^<]{0,10}<\/[^>]+>[^<]{0,50}<[^>]+>\s*₹?\s*([\d,]+\.?\d*)/i,
-      // With "Cr" suffix nearby
-      /Market\s*Cap[^<]{0,100}([\d,]{3,})\s*(?:Cr|cr)/i,
-      /"marketCap"\s*:\s*"?([\d,]+)"?/i,
-      /"market_cap"\s*:\s*([\d.]+)/i,
-    ];
-    for (const p of mcapPats) {
-      const m = html.match(p);
-      if (m) {
-        const v = parseIndian(m[1]);
-        // MCap in Cr: smallcap ~100Cr, Reliance ~19,42,189 Cr
-        if (v && v >= 1) { out.mcap = Math.round(v); break; }
+    // FIX: Screener nests value in <span><span>19,42,189</span></span>
+    // Strategy: find 'Market Cap', grab first >DIGITS< pattern after it
+    const mcapIdx = html.indexOf('Market Cap');
+    if (mcapIdx !== -1) {
+      const snippet = html.slice(mcapIdx, mcapIdx + 500);
+      // Match first occurrence of >number< where number has 4+ digits
+      const numM = snippet.match(/>(\d[\d,]{3,}(?:\.\d+)?)</);
+      if (numM) {
+        const v = parseIndian(numM[1]);
+        if (v && v >= 1) out.mcap = Math.round(v);
+      }
+    }
+    // Fallback JSON patterns
+    if (!out.mcap) {
+      const jsonPats = [/"marketCap"\s*:\s*"?([\d,]+)"?/i, /"market_cap"\s*:\s*([\d.]+)/i];
+      for (const p of jsonPats) {
+        const m = html.match(p);
+        if (m) { const v = parseIndian(m[1]); if (v && v >= 1) { out.mcap = Math.round(v); break; } }
       }
     }
 
     // ── PE ─────────────────────────────────────────────────────────────
     const pePats = [
-      /Stock\s*P\/E[^<]{0,10}<\/[^>]+>[^<]{0,50}<[^>]+>\s*([\d.]+)/i,
-      /P\/E\s*(?:Ratio)?[^<]{0,10}<\/[^>]+>[^<]{0,50}<[^>]+>\s*([\d.]+)/i,
+      /Stock\s*P\/E[^<]{0,10}<\/[^>]+>[^<]{0,100}<[^>]+>\s*([\d.]+)/i,
       /"stockPE"\s*:\s*([\d.]+)/i,
       /"pe"\s*:\s*([\d.]+)/i,
     ];
@@ -144,49 +148,47 @@ function parseScreener(html) {
     const secPats = [
       /"industry"\s*:\s*"([^"]{3,60})"/i,
       /"sector"\s*:\s*"([^"]{3,60})"/i,
-      /sector[^"]*"([A-Za-z][^"]{3,50})"/i,
     ];
-    const badSectors = new Set(['Home','Company','NSE','BSE','Market','Stock','India','Screener']);
+    const badSec = new Set(['Home', 'Company', 'NSE', 'BSE', 'Market', 'Stock', 'India', 'Screener', 'N/A']);
     for (const p of secPats) {
       const m = html.match(p);
-      if (m && !badSectors.has(m[1].trim())) { out.sector = m[1].trim(); break; }
+      if (m && !badSec.has(m[1].trim())) { out.sector = m[1].trim(); break; }
     }
 
     // ── QUARTERS ───────────────────────────────────────────────────────
-    // Use indexOf to find section boundaries — more reliable than regex for large HTML
-    const qStart = html.indexOf('id="quarters"');
-    if (qStart !== -1) {
-      // Find the end of the quarters section — next section or 15KB limit
-      const searchFrom = qStart;
+    // FIX: Use findSectionId() which handles both single AND double quotes
+    const qIdx = findSectionId(html, 'quarters');
+    if (qIdx !== -1) {
+      // Find end of section — next section boundary
       let qEnd = html.length;
-      const nextSection = html.indexOf('<section', qStart + 100);
-      if (nextSection !== -1 && nextSection - qStart < 15000) qEnd = nextSection;
-      const tbl = html.slice(qStart, Math.min(qEnd, qStart + 15000));
+      // Look for next <section or <div id= after start
+      const patterns = ['<section', '<div id=', "<div id='"];
+      for (const p of patterns) {
+        const ni = html.indexOf(p, qIdx + 200);
+        if (ni !== -1 && ni < qEnd) qEnd = ni;
+      }
+      const tbl = html.slice(qIdx, Math.min(qEnd, qIdx + 20000));
 
-      // Extract quarter header labels — try multiple formats
-      // Screener uses "Mar 2025", "Dec 2024" etc in <th> elements
-      const allThs = [];
+      // Extract quarter header labels from <th> elements
+      const hdrs = [];
       const thRe = /<th[^>]*>([\s\S]*?)<\/th>/gi;
       let thm;
       while ((thm = thRe.exec(tbl)) !== null) {
         const txt = thm[1].replace(/<[^>]+>/g, '').trim();
-        // Match: "Mar 2025", "Dec 2024", "Mar '25", "Q4 FY25"
         if (/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/.test(txt) ||
             /Q[1-4]\s*(?:FY)?\s*\d{2}/.test(txt)) {
-          allThs.push(txt);
+          hdrs.push(txt);
         }
       }
-      const hdrs = allThs.slice(0, 5);
 
-      // Extract TD values from a row by finding the row containing a label
+      // Extract TD numbers from a row by label
       function getRowNums(label) {
         const li = tbl.toLowerCase().indexOf(label.toLowerCase());
         if (li === -1) return [];
-        // Find the enclosing <tr>...</tr>
-        const trStart = tbl.lastIndexOf('<tr', li);
-        const trEnd   = tbl.indexOf('</tr>', li);
-        if (trStart === -1 || trEnd === -1) return [];
-        const row = tbl.slice(trStart, trEnd + 5);
+        const trS = tbl.lastIndexOf('<tr', li);
+        const trE = tbl.indexOf('</tr>', li);
+        if (trS === -1 || trE === -1) return [];
+        const row = tbl.slice(trS, trE + 5);
         const nums = [];
         const tdRe = /<td[^>]*>\s*(-?[\d,]+\.?\d*)\s*<\/td>/gi;
         let tm;
@@ -197,28 +199,33 @@ function parseScreener(html) {
         return nums;
       }
 
-      const salesLabels = ['Sales', 'Revenue', 'Net Sales', 'Total Revenue', 'Income from Operations'];
-      const patLabels   = ['Net Profit', 'PAT', 'Profit after tax', 'Net Income'];
+      const salesLabels = ['Sales +', 'Sales', 'Revenue', 'Net Sales', 'Total Revenue', 'Income from Operations'];
+      const patLabels   = ['Net Profit +', 'Net Profit', 'PAT', 'Profit after tax', 'Net Income'];
 
       let sales = [], pat = [];
       for (const l of salesLabels) { sales = getRowNums(l); if (sales.length >= 2) break; }
       for (const l of patLabels)   { pat   = getRowNums(l); if (pat.length >= 2)   break; }
 
-      const count = Math.max(hdrs.length, sales.length, pat.length, 4);
-      for (let i = 0; i < Math.min(count, 5); i++) {
+      // Build quarters array — use max of headers/data length up to 5
+      const count = Math.min(Math.max(hdrs.length, sales.length, pat.length), 5);
+      for (let i = 0; i < count; i++) {
         out.quarters.push({
-          label:   hdrs[i]   || `Q${i + 1}`,
-          revenue: sales[i]  ?? null,
-          pat:     pat[i]    ?? null
+          label:   hdrs[i]  || `Q${i + 1}`,
+          revenue: sales[i] != null ? sales[i] : null,
+          pat:     pat[i]   != null ? pat[i]   : null
         });
       }
     }
 
     // ── AVG DAILY VALUE ────────────────────────────────────────────────
-    const volM = html.match(/(?:10|30)\s*Day\s*Avg[^<]{0,30}<\/[^>]+>[^<]{0,50}<[^>]+>\s*([\d,]+)/i);
-    if (volM && out.price) {
-      const vol = parseIndian(volM[1]);
-      if (vol) out.avg_val = Math.round(vol * out.price / 1e7 * 10) / 10;
+    const volIdx = html.search(/(?:10|30)\s*Day\s*Avg/i);
+    if (volIdx !== -1 && out.price) {
+      const snippet = html.slice(volIdx, volIdx + 300);
+      const numM = snippet.match(/>(\d[\d,]*)</);
+      if (numM) {
+        const vol = parseIndian(numM[1]);
+        if (vol) out.avg_val = Math.round(vol * out.price / 1e7 * 10) / 10;
+      }
     }
 
   } catch (e) { /* best effort */ }
@@ -246,4 +253,4 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function sendError(res, s, m) { return res.status(s).json({ error: true, message: m }); }
 function sendOk(res, data) { return res.status(200).json({ error: false, ...data }); }
 
-module.exports = { fetchDirect, fetchYahoo, fetchScreenerHTML, parseScreener, parseIndian, calcEMA, calcRS, sleep, sendError, sendOk };
+module.exports = { fetchDirect, fetchYahoo, fetchScreenerHTML, parseScreener, parseIndian, findSectionId, calcEMA, calcRS, sleep, sendError, sendOk };
